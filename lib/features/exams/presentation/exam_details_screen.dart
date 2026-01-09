@@ -9,8 +9,23 @@ import '../../../shared/widgets/state_widgets.dart';
 
 // Exam courses provider
 final examCoursesProvider = FutureProvider.family.autoDispose<List<Course>, String>((ref, examType) async {
+  String specializationForApi(String examType) {
+    switch (examType.toLowerCase()) {
+      case 'iit-jee':
+        return 'IIT-JEE';
+      case 'neet':
+        return 'NEET';
+      case 'cbse':
+        return 'CBSE';
+      default:
+        return examType.toUpperCase();
+    }
+  }
   final api = ApiService();
-  final response = await api.get('/api/courses/specialization/$examType');
+  final specialization = specializationForApi(examType);
+  final response = await api.get(
+      '/api/courses/specialization/$specialization'
+  );
   final data = response.data;
   
   List<dynamic> coursesList = [];
@@ -40,6 +55,7 @@ class ExamDetailsScreen extends ConsumerWidget {
         return examType.toUpperCase();
     }
   }
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

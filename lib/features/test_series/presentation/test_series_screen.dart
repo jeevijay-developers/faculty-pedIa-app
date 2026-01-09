@@ -12,6 +12,7 @@ import '../../../shared/widgets/user_widgets.dart';
 final testSeriesProvider = FutureProvider.autoDispose<List<TestSeries>>((ref) async {
   final api = ApiService();
   final response = await api.get('/api/test-series');
+  debugPrint('RAW: ${response.data}');
   final data = response.data;
   
   List<dynamic> seriesList = [];

@@ -11,6 +11,7 @@ import '../../../shared/widgets/state_widgets.dart';
 final testSeriesDetailProvider = FutureProvider.family.autoDispose<TestSeries, String>((ref, id) async {
   final api = ApiService();
   final response = await api.get('/api/test-series/$id');
+  debugPrint('RAW: ${response.data}');
   final data = response.data;
   
   Map<String, dynamic> seriesData = {};

@@ -49,6 +49,11 @@
 	<string>Faculty Pedia uses Face ID for secure authentication</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Faculty Pedia needs camera access to update your profile picture</string>
+	<key>NSAppTransportSecurity</key>
+    <dict>
+      <key>NSAllowsArbitraryLoads</key>
+      <true/>
+    </dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Faculty Pedia needs photo library access to select a profile picture</string>
 	<key>UIBackgroundModes</key>

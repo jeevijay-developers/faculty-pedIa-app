@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
+//import 'package:firebase_core/firebase_core.dart';
 
 import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
@@ -21,8 +21,8 @@ void main() async {
   
   // Initialize Firebase (for push notifications)
   try {
-    await Firebase.initializeApp();
-    await NotificationService.init();
+    //await Firebase.initializeApp();
+    //await NotificationService.init();
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }

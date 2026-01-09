@@ -110,7 +110,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (_isAuthError(studentError)) {
           try {
             final response = await _apiService.post(
-              '/api/auth/login-educator',
+              '/api/auth/ed-login',
               data: {'email': email, 'password': password},
             );
             
@@ -189,7 +189,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     try {
       final response = await _apiService.post(
-        '/api/auth/register-student',
+        '/api/auth/signup-student',
         data: {
           'name': name,
           'email': email,
@@ -225,7 +225,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     try {
       final response = await _apiService.post(
-        '/api/educators',
+        '/api/ed-signup',
         data: {
           'firstName': firstName,
           'lastName': lastName,

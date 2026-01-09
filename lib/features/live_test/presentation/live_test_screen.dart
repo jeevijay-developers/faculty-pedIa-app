@@ -348,15 +348,16 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
                       _buildInfoChip(Icons.quiz, '${_questions.length} Questions'),
-                      const SizedBox(width: 12),
                       _buildInfoChip(Icons.timer, '60 Minutes'),
-                      const SizedBox(width: 12),
                       _buildInfoChip(Icons.star, '${_questions.length * 4} Marks'),
                     ],
                   ),
+
                 ],
               ),
             ),

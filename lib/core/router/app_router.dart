@@ -27,7 +27,7 @@ import '../../features/auth/providers/auth_provider.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: true,
@@ -37,20 +37,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == '/signup' ||
           state.matchedLocation == '/forgot-password';
       final isSplash = state.matchedLocation == '/splash';
-      
       // Don't redirect from splash - let it handle navigation
       if (isSplash) return null;
-      
+
       // If not logged in and not on auth pages, redirect to login
       if (!isLoggedIn && !isLoggingIn) {
         return '/login';
       }
-      
+
       // If logged in and on auth pages, redirect to home
       if (isLoggedIn && isLoggingIn) {
         return '/home';
       }
-      
+
       return null;
     },
     routes: [

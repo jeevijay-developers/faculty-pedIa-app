@@ -14,14 +14,14 @@ final webinarsProvider = FutureProvider.autoDispose<List<Webinar>>((ref) async {
   final api = ApiService();
   final response = await api.get('/api/webinars');
   final data = response.data;
-  
+
   List<dynamic> webinarsList = [];
   if (data is Map && data['webinars'] != null) {
     webinarsList = data['webinars'] as List;
   } else if (data is List) {
     webinarsList = data;
   }
-  
+
   return webinarsList.map((e) => Webinar.fromJson(e)).toList();
 });
 

@@ -42,7 +42,7 @@ class TestSeries {
   });
   
   String get imageUrl => image?.url ?? '';
-  
+
   factory TestSeries.fromJson(Map<String, dynamic> json) {
     return TestSeries(
       id: json['_id'] ?? json['id'] ?? '',
@@ -54,20 +54,30 @@ class TestSeries {
       specialization: _parseStringList(json['specialization']),
       educatorId: _parseEducatorId(json),
       educatorName: _parseEducatorName(json),
-      fees: (json['fees'] as num?)?.toDouble(),
+      fees: (json['fees'] as num?)?.toDouble() ?? (json['price'] as num?)?.toDouble(),
       discount: (json['discount'] as num?)?.toDouble(),
-      totalTests: json['totalTests'] ?? json['testCount'],
-      enrolledCount: json['enrolledCount'] ?? json['enrolledStudents'],
-      startDate: json['startDate'] != null ? DateTime.tryParse(json['startDate']) : null,
-      endDate: json['endDate'] != null ? DateTime.tryParse(json['endDate']) : null,
+      totalTests: (json['totalTests'] as num?)?.toInt()
+          ?? (json['testCount'] as num?)?.toInt()
+          ?? (json['numberOfTests'] as num?)?.toInt(),
+      enrolledCount: (json['enrolledCount'] as num?)?.toInt()
+          ?? (json['enrolledStudents'] is List ? (json['enrolledStudents'] as List).length : null),
+      startDate: json['startDate'] != null ? DateTime.tryParse(json['startDate'].toString()) : null,
+      endDate: json['endDate'] != null ? DateTime.tryParse(json['endDate'].toString()) : null,
       status: json['status'],
       isActive: json['isActive'],
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      tests: (json['tests'] as List<dynamic>?)
-          ?.map((e) => Test.fromJson(e))
-          .toList(),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      tests: (json['tests'] is List)
+          ? (json['tests'] as List).map((e) {
+        if (e is Map<String, dynamic>) {
+          return Test.fromJson(e);
+        } else {
+          return Test(id: e.toString());
+        }
+      }).toList()
+          : null,
     );
   }
+
   
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return [];
@@ -174,7 +184,7 @@ class Test {
     this.isActive,
     this.questions,
   });
-  
+
   factory Test.fromJson(Map<String, dynamic> json) {
     return Test(
       id: json['_id'] ?? json['id'] ?? '',
@@ -189,9 +199,16 @@ class Test {
       endTime: json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
       status: json['status'],
       isActive: json['isActive'],
-      questions: (json['questions'] as List<dynamic>?)
-          ?.map((e) => Question.fromJson(e))
-          .toList(),
+      questions: (json['questions'] is List)
+          ? (json['questions'] as List).map((e) {
+        if (e is Map<String, dynamic>) {
+          return Question.fromJson(e);
+        } else {
+          return Question(id: e.toString());
+        }
+      }).toList()
+          : null,
+
     );
   }
   

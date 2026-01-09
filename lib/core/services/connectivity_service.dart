@@ -28,18 +28,17 @@ class ConnectivityService {
       _connectionStatusController.add(false);
     }
   }
-  
-  void _updateConnectionStatus(List<ConnectivityResult> results) {
-    final hasConnection = results.isNotEmpty && 
-        results.any((result) => result != ConnectivityResult.none);
+
+  void _updateConnectionStatus(ConnectivityResult result) {
+    final hasConnection = result != ConnectivityResult.none;
     _isConnected = hasConnection;
     _connectionStatusController.add(hasConnection);
   }
-  
+
+
   Future<bool> checkConnection() async {
     final result = await _connectivity.checkConnectivity();
-    return result.isNotEmpty && 
-        result.any((result) => result != ConnectivityResult.none);
+    return result != ConnectivityResult.none;
   }
   
   void dispose() {
