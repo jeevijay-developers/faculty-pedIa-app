@@ -94,7 +94,6 @@ class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
-    
     final success = await ref.read(authStateProvider.notifier).signupStudent(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),

@@ -9,6 +9,10 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+# Backend
+server/node_modules/
+server/.env
+server/uploads/
 
 # testing
 /coverage
