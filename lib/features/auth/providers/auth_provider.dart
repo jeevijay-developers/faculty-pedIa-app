@@ -14,7 +14,7 @@ class AuthState {
   final User? user;
   final String? userRole; // 'student' or 'educator'
   final String? error;
-  
+
   const AuthState({
     this.isAuthenticated = false,
     this.isLoading = false,
@@ -22,7 +22,7 @@ class AuthState {
     this.userRole,
     this.error,
   });
-  
+
   AuthState copyWith({
     bool? isAuthenticated,
     bool? isLoading,
@@ -38,10 +38,10 @@ class AuthState {
       error: error,
     );
   }
-  
+
   bool get isStudent => userRole == 'student';
   bool get isEducator => userRole == 'educator';
-  
+
   Student? get student => user is Student ? user as Student : null;
   Educator? get educator => user is Educator ? user as Educator : null;
 }
@@ -49,29 +49,29 @@ class AuthState {
 // Auth Notifier
 class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _apiService;
-  
+
   AuthNotifier(this._apiService) : super(const AuthState()) {
     _checkAuthStatus();
   }
-  
+
   Future<void> _checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    
+
     try {
       final token = await StorageService.getSecure(AppConfig.authTokenKey);
       final userDataJson = StorageService.getString(AppConfig.userDataKey);
       final userRole = StorageService.getString(AppConfig.userRoleKey);
-      
+
       if (token != null && token.isNotEmpty && userDataJson != null) {
         final userData = json.decode(userDataJson);
         User user;
-        
+
         if (userRole == 'educator') {
           user = Educator.fromJson(userData);
         } else {
           user = Student.fromJson(userData);
         }
-        
+
         state = state.copyWith(
           isAuthenticated: true,
           isLoading: false,
@@ -92,10 +92,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
-  
+
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       // Try student login first
       try {
@@ -103,7 +103,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           '/api/auth/login-student',
           data: {'email': email, 'password': password},
         );
-        
+
         return _handleLoginResponse(response.data, 'student');
       } catch (studentError) {
         // If student login fails with 400/401, try educator login
@@ -113,7 +113,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
               '/api/auth/ed-login',
               data: {'email': email, 'password': password},
             );
-            
+
             return _handleLoginResponse(response.data, 'educator');
           } catch (educatorError) {
             throw educatorError;
@@ -130,18 +130,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
-  
-  Future<bool> _handleLoginResponse(Map<String, dynamic> data, String userType) async {
+
+  Future<bool> _handleLoginResponse(
+      Map<String, dynamic> data, String userType) async {
     // Extract token
-    final token = data['TOKEN'] ?? 
-        data['token'] ?? 
-        data['accessToken'] ?? 
+    final token = data['TOKEN'] ??
+        data['token'] ??
+        data['accessToken'] ??
         data['data']?['token'];
-    
+
     if (token == null) {
       throw Exception('No token received');
     }
-    
+
     // Extract user data
     Map<String, dynamic>? userData;
     if (userType == 'student') {
@@ -149,16 +150,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else {
       userData = data['educator'] ?? data['user'] ?? data['data']?['educator'];
     }
-    
+
     if (userData == null) {
       throw Exception('No user data received');
     }
-    
+
     // Save to storage
     await StorageService.setSecure(AppConfig.authTokenKey, token);
-    await StorageService.setString(AppConfig.userDataKey, json.encode(userData));
+    await StorageService.setString(
+        AppConfig.userDataKey, json.encode(userData));
     await StorageService.setString(AppConfig.userRoleKey, userType);
-    
+
     // Create user object
     User user;
     if (userType == 'educator') {
@@ -166,17 +168,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else {
       user = Student.fromJson(userData);
     }
-    
+
     state = state.copyWith(
       isAuthenticated: true,
       isLoading: false,
       user: user,
       userRole: userType,
     );
-    
+
     return true;
   }
-  
+
   Future<bool> signupStudent({
     required String name,
     required String email,
@@ -186,7 +188,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? academicClass,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final response = await _apiService.post(
         '/api/auth/signup-student',
@@ -199,7 +201,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           if (academicClass != null) 'class': academicClass,
         },
       );
-      
+
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
@@ -211,7 +213,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
-  
+
   Future<bool> signupEducator({
     required String firstName,
     required String lastName,
@@ -222,10 +224,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? bio,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       final response = await _apiService.post(
-        '/api/ed-signup',
+        '/api/auth/ed-signup',
         data: {
           'firstName': firstName,
           'lastName': lastName,
@@ -236,7 +238,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           if (bio != null) 'bio': bio,
         },
       );
-      
+
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
@@ -248,16 +250,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
-  
+
   Future<bool> forgotPassword(String email) async {
     state = state.copyWith(isLoading: true, error: null);
-    
+
     try {
       await _apiService.post(
         '/api/auth/forgot-password',
         data: {'email': email},
       );
-      
+
       state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
@@ -269,23 +271,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
-  
+
   Future<void> logout() async {
     await StorageService.deleteSecure(AppConfig.authTokenKey);
     await StorageService.remove(AppConfig.userDataKey);
     await StorageService.remove(AppConfig.userRoleKey);
-    
+
     state = const AuthState(
       isAuthenticated: false,
       isLoading: false,
     );
   }
-  
+
   Future<void> updateUser(User user) async {
-    await StorageService.setString(AppConfig.userDataKey, json.encode(user.toJson()));
+    await StorageService.setString(
+        AppConfig.userDataKey, json.encode(user.toJson()));
     state = state.copyWith(user: user);
   }
-  
+
   bool _isAuthError(dynamic error) {
     if (error is Exception) {
       final errorString = error.toString();
@@ -293,28 +296,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     return false;
   }
-  
+
   String _getErrorMessage(dynamic error) {
     if (error.toString().contains('SocketException') ||
         error.toString().contains('Connection refused')) {
       return 'Network error. Please check your internet connection.';
     }
-    
+
     if (error.toString().contains('400') || error.toString().contains('401')) {
       return 'Invalid email or password.';
     }
-    
+
     if (error.toString().contains('403')) {
       return 'Account access denied. Please contact support.';
     }
-    
+
     if (error.toString().contains('500')) {
       return 'Server error. Please try again later.';
     }
-    
+
     return 'Login failed. Please try again.';
   }
-  
+
   void clearError() {
     state = state.copyWith(error: null);
   }

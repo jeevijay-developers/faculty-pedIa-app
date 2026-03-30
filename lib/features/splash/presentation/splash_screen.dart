@@ -24,32 +24,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
       ),
     );
-    
+
     _controller.forward();
     _navigateToNextScreen();
   }
 
   Future<void> _navigateToNextScreen() async {
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
-    
+
     final authState = ref.read(authStateProvider);
-    
+
     if (authState.isAuthenticated) {
       context.go('/home');
     } else {
@@ -79,29 +79,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Logo
-                    Container(
+                    SizedBox(
                       width: 120,
                       height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.school,
-                        size: 60,
-                        color: AppColors.primary,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // App Name
                     const Text(
                       'Faculty Pedia',
@@ -112,9 +100,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         letterSpacing: 1.2,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Tagline
                     Text(
                       'Learn from the Best Educators',
@@ -124,9 +112,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         letterSpacing: 0.5,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 48),
-                    
+
                     // Loading indicator
                     SizedBox(
                       width: 40,

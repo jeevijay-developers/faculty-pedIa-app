@@ -12,7 +12,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -21,13 +22,15 @@ class HomeScreen extends ConsumerWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: isDark ? Colors.white : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
-                Icons.school,
-                color: Colors.white,
-                size: 20,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -63,27 +66,27 @@ class HomeScreen extends ConsumerWidget {
             children: [
               // Welcome Banner
               _buildWelcomeBanner(context, authState),
-              
+
               const SizedBox(height: 24),
-              
+
               // Exam Categories
               _buildExamCategories(context),
-              
+
               const SizedBox(height: 24),
-              
+
               // Features Section
               _buildFeaturesSection(context),
-              
+
               const SizedBox(height: 24),
-              
+
               // Quick Actions
               _buildQuickActions(context),
-              
+
               const SizedBox(height: 24),
-              
+
               // Stats Section
               _buildStatsSection(context),
-              
+
               const SizedBox(height: 32),
             ],
           ),
@@ -131,7 +134,8 @@ class HomeScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: (banner['gradient'] as List<Color>).first.withOpacity(0.3),
+                color:
+                    (banner['gradient'] as List<Color>).first.withOpacity(0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -169,9 +173,24 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildExamCategories(BuildContext context) {
     final exams = [
-      {'name': 'IIT-JEE', 'icon': Icons.science, 'color': AppColors.primary, 'route': '/exam/iit-jee'},
-      {'name': 'NEET', 'icon': Icons.medical_services, 'color': AppColors.secondary, 'route': '/exam/neet'},
-      {'name': 'CBSE', 'icon': Icons.school, 'color': AppColors.accent, 'route': '/exam/cbse'},
+      {
+        'name': 'IIT-JEE',
+        'icon': Icons.science,
+        'color': AppColors.primary,
+        'route': '/exam/iit-jee'
+      },
+      {
+        'name': 'NEET',
+        'icon': Icons.medical_services,
+        'color': AppColors.secondary,
+        'route': '/exam/neet'
+      },
+      {
+        'name': 'CBSE',
+        'icon': Icons.school,
+        'color': AppColors.accent,
+        'route': '/exam/cbse'
+      },
     ];
 
     return Column(
@@ -251,10 +270,26 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildFeaturesSection(BuildContext context) {
     final features = [
-      {'name': 'Courses', 'icon': Icons.play_circle_outline, 'route': '/courses'},
-      {'name': 'Test Series', 'icon': Icons.assignment_outlined, 'route': '/test-series'},
-      {'name': 'Webinars', 'icon': Icons.videocam_outlined, 'route': '/webinars'},
-      {'name': 'Educators', 'icon': Icons.people_outline, 'route': '/educators'},
+      {
+        'name': 'Courses',
+        'icon': Icons.play_circle_outline,
+        'route': '/courses'
+      },
+      {
+        'name': 'Test Series',
+        'icon': Icons.assignment_outlined,
+        'route': '/test-series'
+      },
+      {
+        'name': 'Webinars',
+        'icon': Icons.videocam_outlined,
+        'route': '/webinars'
+      },
+      {
+        'name': 'Educators',
+        'icon': Icons.people_outline,
+        'route': '/educators'
+      },
     ];
 
     return Column(
