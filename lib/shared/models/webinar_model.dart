@@ -8,6 +8,7 @@ class Webinar {
   final String? educatorId;
   final String? educatorName;
   final String? educatorImage;
+  final String? webinarType;
   final double? fees;
   final bool? isFree;
   final DateTime? scheduledAt;
@@ -18,7 +19,7 @@ class Webinar {
   final String? status;
   final bool? isActive;
   final DateTime? createdAt;
-  
+
   Webinar({
     required this.id,
     required this.title,
@@ -29,6 +30,7 @@ class Webinar {
     this.educatorId,
     this.educatorName,
     this.educatorImage,
+    this.webinarType,
     this.fees,
     this.isFree,
     this.scheduledAt,
@@ -40,47 +42,53 @@ class Webinar {
     this.isActive,
     this.createdAt,
   });
-  
+
   String get imageUrl => image?.url ?? '';
-  
+
   bool get isUpcoming {
     if (scheduledAt == null) return false;
     return scheduledAt!.isAfter(DateTime.now());
   }
-  
+
   bool get isLive {
     if (scheduledAt == null || duration == null) return false;
     final now = DateTime.now();
     final endTime = scheduledAt!.add(Duration(minutes: duration!));
     return now.isAfter(scheduledAt!) && now.isBefore(endTime);
   }
-  
+
   factory Webinar.fromJson(Map<String, dynamic> json) {
     return Webinar(
       id: json['_id'] ?? json['id'] ?? '',
       title: json['title'] ?? '',
       description: json['description'],
       slug: json['slug'],
-      image: json['image'] != null ? WebinarImage.fromJson(json['image']) : null,
+      image:
+          json['image'] != null ? WebinarImage.fromJson(json['image']) : null,
       subject: _parseStringList(json['subject']),
       educatorId: _parseEducatorId(json),
       educatorName: _parseEducatorName(json),
       educatorImage: _parseEducatorImage(json),
+      webinarType: json['webinarType'],
       fees: (json['fees'] as num?)?.toDouble(),
       isFree: json['isFree'] ?? (json['fees'] == 0),
-      scheduledAt: json['scheduledAt'] != null 
-          ? DateTime.tryParse(json['scheduledAt']) 
-          : (json['startTime'] != null ? DateTime.tryParse(json['startTime']) : null),
-      duration: json['duration'],
+      scheduledAt: json['scheduledAt'] != null
+          ? DateTime.tryParse(json['scheduledAt'])
+          : (json['startTime'] != null
+              ? DateTime.tryParse(json['startTime'])
+              : null),
+      duration: _parseInt(json['duration']),
       meetingLink: json['meetingLink'] ?? json['link'],
-      maxAttendees: json['maxAttendees'],
-      registeredCount: json['registeredCount'] ?? json['attendees'],
+      maxAttendees: _parseInt(json['maxAttendees']),
+      registeredCount: _parseInt(json['registeredCount'] ?? json['attendees']),
       status: json['status'],
       isActive: json['isActive'],
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
     );
   }
-  
+
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return [];
     if (value is String) return [value];
@@ -89,24 +97,35 @@ class Webinar {
     }
     return [];
   }
-  
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   static String? _parseEducatorId(Map<String, dynamic> json) {
-    final educator = json['educatorId'] ?? json['educatorID'] ?? json['educator'];
+    final educator =
+        json['educatorId'] ?? json['educatorID'] ?? json['educator'];
     if (educator is String) return educator;
     if (educator is Map) return educator['_id']?.toString();
     return null;
   }
-  
+
   static String? _parseEducatorName(Map<String, dynamic> json) {
-    final educator = json['educatorId'] ?? json['educatorID'] ?? json['educator'];
+    final educator =
+        json['educatorId'] ?? json['educatorID'] ?? json['educator'];
     if (educator is Map) {
       return educator['name'] ?? educator['fullName'];
     }
     return json['educatorName'];
   }
-  
+
   static String? _parseEducatorImage(Map<String, dynamic> json) {
-    final educator = json['educatorId'] ?? json['educatorID'] ?? json['educator'];
+    final educator =
+        json['educatorId'] ?? json['educatorID'] ?? json['educator'];
     if (educator is Map) {
       final img = educator['profilePicture'] ?? educator['profileImage'];
       if (img is String) return img;
@@ -114,7 +133,7 @@ class Webinar {
     }
     return json['educatorImage'];
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -126,6 +145,7 @@ class Webinar {
       'educatorId': educatorId,
       'educatorName': educatorName,
       'educatorImage': educatorImage,
+      'webinarType': webinarType,
       'fees': fees,
       'isFree': isFree,
       'scheduledAt': scheduledAt?.toIso8601String(),
@@ -143,9 +163,9 @@ class Webinar {
 class WebinarImage {
   final String? url;
   final String? publicId;
-  
+
   WebinarImage({this.url, this.publicId});
-  
+
   factory WebinarImage.fromJson(dynamic json) {
     if (json is String) {
       return WebinarImage(url: json);
@@ -158,7 +178,7 @@ class WebinarImage {
     }
     return WebinarImage();
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'url': url,

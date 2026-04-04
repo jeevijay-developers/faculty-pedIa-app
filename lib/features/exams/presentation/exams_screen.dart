@@ -11,10 +11,11 @@ class ExamsScreen extends ConsumerWidget {
     final exams = [
       {
         'name': 'IIT-JEE',
-        'fullName': 'Indian Institutes of Technology Joint Entrance Examination',
+        'fullName':
+            'Indian Institutes of Technology Joint Entrance Examination',
         'icon': Icons.science,
         'color': AppColors.primary,
-        'route': '/exam/iit-jee',
+        'route': '/exam-content/iit-jee',
         'description': 'Engineering entrance exam for IITs and NITs',
         'subjects': ['Physics', 'Chemistry', 'Mathematics'],
       },
@@ -23,7 +24,7 @@ class ExamsScreen extends ConsumerWidget {
         'fullName': 'National Eligibility cum Entrance Test',
         'icon': Icons.medical_services,
         'color': AppColors.secondary,
-        'route': '/exam/neet',
+        'route': '/exam-content/neet',
         'description': 'Medical entrance exam for MBBS and BDS courses',
         'subjects': ['Physics', 'Chemistry', 'Biology'],
       },
@@ -32,7 +33,7 @@ class ExamsScreen extends ConsumerWidget {
         'fullName': 'Central Board of Secondary Education',
         'icon': Icons.school,
         'color': AppColors.accent,
-        'route': '/exam/cbse',
+        'route': '/exam-content/cbse',
         'description': 'Board exams for Classes 10 and 12',
         'subjects': ['All Subjects'],
       },
@@ -56,7 +57,7 @@ class ExamsScreen extends ConsumerWidget {
 
 class _ExamCard extends StatelessWidget {
   final Map<String, dynamic> exam;
-  
+
   const _ExamCard({required this.exam});
 
   @override
@@ -93,9 +94,12 @@ class _ExamCard extends StatelessWidget {
                       children: [
                         Text(
                           exam['name'] as String,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: exam['color'] as Color,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                color: exam['color'] as Color,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -124,7 +128,8 @@ class _ExamCard extends StatelessWidget {
                 runSpacing: 8,
                 children: (exam['subjects'] as List<String>).map((subject) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: (exam['color'] as Color).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),

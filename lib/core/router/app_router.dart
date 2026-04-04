@@ -14,6 +14,10 @@ import '../../features/courses/presentation/courses_screen.dart';
 import '../../features/courses/presentation/course_details_screen.dart';
 import '../../features/exams/presentation/exams_screen.dart';
 import '../../features/exams/presentation/exam_details_screen.dart';
+import '../../features/exams/presentation/exam_content_tile.dart';
+import '../../features/exams/presentation/course_type_screen.dart';
+import '../../features/exams/presentation/exam_educators_screen.dart';
+import '../../features/exams/presentation/exam_webinars_screen.dart';
 import '../../features/test_series/presentation/test_series_screen.dart';
 import '../../features/test_series/presentation/test_series_details_screen.dart';
 import '../../features/live_test/presentation/live_test_screen.dart';
@@ -58,7 +62,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      
+
       // Auth Routes
       GoRoute(
         path: '/login',
@@ -72,7 +76,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-      
+
       // Main Shell with Bottom Navigation
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -103,7 +107,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      
+
       // Educator Profile
       GoRoute(
         path: '/educator/:id',
@@ -111,7 +115,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           educatorId: state.pathParameters['id']!,
         ),
       ),
-      
+
       // Courses
       GoRoute(
         path: '/courses',
@@ -123,15 +127,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           courseId: state.pathParameters['id']!,
         ),
       ),
-      
+
       // Exams Detail
       GoRoute(
         path: '/exam/:type',
         builder: (context, state) => ExamDetailsScreen(
           examType: state.pathParameters['type']!,
+          initialCourseType: state.uri.queryParameters['courseType'],
         ),
       ),
-      
+      GoRoute(
+        path: '/exam-content/:type',
+        builder: (context, state) => ExamContentTileScreen(
+          examType: state.pathParameters['type']!,
+        ),
+      ),
+      GoRoute(
+        path: '/exam-courses/:type/:courseType',
+        builder: (context, state) => CourseTypeScreen(
+          examType: state.pathParameters['type']!,
+          courseType: state.pathParameters['courseType']!,
+        ),
+      ),
+      GoRoute(
+        path: '/exam-educators/:type',
+        builder: (context, state) => ExamEducatorsScreen(
+          examType: state.pathParameters['type']!,
+        ),
+      ),
+      GoRoute(
+        path: '/exam-webinars/:type',
+        builder: (context, state) => ExamWebinarsScreen(
+          examType: state.pathParameters['type']!,
+        ),
+      ),
+
       // Test Series
       GoRoute(
         path: '/test-series',
@@ -143,7 +173,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           testSeriesId: state.pathParameters['id']!,
         ),
       ),
-      
+
       // Live Test
       GoRoute(
         path: '/live-test/:id',
@@ -157,7 +187,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           resultId: state.pathParameters['id']!,
         ),
       ),
-      
+
       // Webinars
       GoRoute(
         path: '/webinars',
@@ -169,13 +199,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           webinarId: state.pathParameters['id']!,
         ),
       ),
-      
+
       // Profile
       GoRoute(
         path: '/edit-profile',
         builder: (context, state) => const EditProfileScreen(),
       ),
-      
+
       // Settings
       GoRoute(
         path: '/settings',

@@ -13,6 +13,7 @@ import {
   uploadCourseIntroVideo,
   getCoursesByEducator,
   getCoursesBySpecialization,
+  addCourseReview,
   getCoursesBySubject,
   getCoursesByClass,
   getCoursesByRating,
@@ -32,9 +33,11 @@ import {
   removeStudyMaterial,
   getCourseStatistics,
   getOverallStatistics,
+  addCourseReview,
 } from "../controllers/course.controller.js";
 
 import {
+    addCourseReview,
   createCourseValidation,
   updateCourseValidation,
   enrollStudentValidation,
@@ -188,6 +191,14 @@ router.post(
   validateObjectId("id"),
   validateRating,
   updateCourseRating
+);
+
+// Add or update course review
+router.post(
+  "/:id/reviews",
+  validateObjectId("id"),
+  validateRating,
+  addCourseReview
 );
 
 // ==================== Video Routes ====================

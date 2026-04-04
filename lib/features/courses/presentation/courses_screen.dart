@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../../shared/models/course_model.dart';
@@ -13,14 +14,14 @@ final coursesProvider = FutureProvider.autoDispose<List<Course>>((ref) async {
   final api = ApiService();
   final response = await api.get('/api/courses');
   final data = response.data;
-  
+
   List<dynamic> coursesList = [];
   if (data is Map && data['courses'] != null) {
     coursesList = data['courses'] as List;
   } else if (data is List) {
     coursesList = data;
   }
-  
+
   return coursesList.map((e) => Course.fromJson(e)).toList();
 });
 
@@ -30,7 +31,7 @@ class CoursesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coursesAsync = ref.watch(coursesProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Courses'),
@@ -63,7 +64,7 @@ class CoursesScreen extends ConsumerWidget {
                 subtitle: 'Check back later for new courses',
               );
             }
-            
+
             return ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: courses.length,
@@ -80,11 +81,12 @@ class CoursesScreen extends ConsumerWidget {
 
 class _CourseCard extends StatelessWidget {
   final Course course;
-  
+
   const _CourseCard({required this.course});
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = _resolveImageUrl(course.imageUrl);
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       clipBehavior: Clip.antiAlias,
@@ -98,15 +100,15 @@ class _CourseCard extends StatelessWidget {
               height: 140,
               width: double.infinity,
               color: AppColors.grey200,
-              child: course.imageUrl.isNotEmpty
+              child: imageUrl.isNotEmpty
                   ? Image.network(
-                      course.imageUrl,
+                      imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _buildPlaceholder(),
                     )
                   : _buildPlaceholder(),
             ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(16),
@@ -119,7 +121,8 @@ class _CourseCard extends StatelessWidget {
                       spacing: 6,
                       children: course.specialization.take(2).map((spec) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
@@ -136,7 +139,7 @@ class _CourseCard extends StatelessWidget {
                       }).toList(),
                     ),
                   const SizedBox(height: 8),
-                  
+
                   // Title
                   Text(
                     course.title,
@@ -145,7 +148,7 @@ class _CourseCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Educator
                   if (course.educator != null)
                     Row(
@@ -166,7 +169,7 @@ class _CourseCard extends StatelessWidget {
                       ],
                     ),
                   const SizedBox(height: 12),
-                  
+
                   // Price and action
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -202,5 +205,16 @@ class _CourseCard extends StatelessWidget {
         color: AppColors.grey400,
       ),
     );
+  }
+
+  String _resolveImageUrl(String url) {
+    if (url.isEmpty) return '';
+    final uri = Uri.tryParse(url);
+    if (uri == null) return '';
+    if (uri.hasScheme) return url;
+    if (url.startsWith('/')) {
+      return '${AppConfig.baseUrl}$url';
+    }
+    return '${AppConfig.baseUrl}/$url';
   }
 }

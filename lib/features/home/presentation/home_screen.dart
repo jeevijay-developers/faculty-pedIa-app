@@ -6,426 +6,613 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../auth/providers/auth_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+// ── Blue-600 palette ──────────────────────────────────────────────────────────
+const kPrimary = Color(0xFF2563EB); // blue-600
+const kPrimaryLight = Color(0xFF3B82F6); // blue-500
+const kPrimaryDark = Color(0xFF1D4ED8); // blue-700
+const kPrimaryBg = Color(0xFFEFF6FF); // blue-50
+const kPrimaryMid = Color(0xFFBFDBFE); // blue-200
+
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  int _bannerIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Faculty Pedia',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+      backgroundColor:
+          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        color: kPrimary,
+        onRefresh: () async {},
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(context, isDark),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildBanner(context),
+                  const SizedBox(height: 28),
+                  _buildSectionHeader(context, 'Exam Preparation',
+                      onSeeAll: () => context.go('/exams')),
+                  const SizedBox(height: 14),
+                  _buildExamCategories(context),
+                  const SizedBox(height: 28),
+                  _buildSectionHeader(context, 'Explore Features'),
+                  const SizedBox(height: 14),
+                  _buildFeaturesGrid(context, isDark),
+                  const SizedBox(height: 28),
+                  _buildQuickActions(context),
+                  const SizedBox(height: 28),
+                  _buildStatsSection(context, isDark),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Show notifications
-            },
+      ),
+    );
+  }
+
+  // ── Sliver AppBar ────────────────────────────────────────────────────────────
+  SliverAppBar _buildSliverAppBar(BuildContext context, bool isDark) {
+    return SliverAppBar(
+      floating: true,
+      snap: true,
+      elevation: 0,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      surfaceTintColor: Colors.transparent,
+      titleSpacing: 16,
+      title: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: kPrimary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Faculty Pedia',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              Text(
+                'Learn. Grow. Excel.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: kPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // Refresh data
-        },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Banner
-              _buildWelcomeBanner(context, authState),
-
-              const SizedBox(height: 24),
-
-              // Exam Categories
-              _buildExamCategories(context),
-
-              const SizedBox(height: 24),
-
-              // Features Section
-              _buildFeaturesSection(context),
-
-              const SizedBox(height: 24),
-
-              // Quick Actions
-              _buildQuickActions(context),
-
-              const SizedBox(height: 24),
-
-              // Stats Section
-              _buildStatsSection(context),
-
-              const SizedBox(height: 32),
-            ],
-          ),
+      actions: [
+        _appBarIcon(
+          Icons.notifications_outlined,
+          badge: true,
+          onTap: () {},
+        ),
+        const SizedBox(width: 4),
+        _appBarIcon(
+          Icons.settings_outlined,
+          onTap: () => context.push('/settings'),
+        ),
+        const SizedBox(width: 8),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(0.5),
+        child: Divider(
+          height: 0.5,
+          color: Colors.grey.withOpacity(0.15),
         ),
       ),
     );
   }
 
-  Widget _buildWelcomeBanner(BuildContext context, AuthState authState) {
-    final banners = [
-      {
-        'title': 'Meet your favorite educators',
-        'subtitle': 'Join live classes and webinars with top educators',
-        'gradient': [AppColors.primary, AppColors.primaryDark],
-      },
-      {
-        'title': 'Start teaching online',
-        'subtitle': 'Become an educator and share your knowledge',
-        'gradient': [AppColors.secondary, AppColors.secondaryDark],
-      },
-      {
-        'title': 'Prepare for exams',
-        'subtitle': 'Access test series and study materials',
-        'gradient': [AppColors.accent, AppColors.accentDark],
-      },
-    ];
-
-    return CarouselSlider(
-      options: CarouselOptions(
-        height: 180,
-        autoPlay: true,
-        autoPlayInterval: const Duration(seconds: 5),
-        enlargeCenterPage: true,
-        viewportFraction: 0.9,
-      ),
-      items: banners.map((banner) {
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: banner['gradient'] as List<Color>,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  Widget _appBarIcon(IconData icon,
+      {bool badge = false, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: kPrimaryBg,
+              shape: BoxShape.circle,
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    (banner['gradient'] as List<Color>).first.withOpacity(0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
+            child: Icon(icon, color: kPrimary, size: 20),
+          ),
+          if (badge)
+            Positioned(
+              top: 8,
+              right: 0,
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  banner['title'] as String,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  banner['subtitle'] as String,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-              ],
             ),
-          ),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 
-  Widget _buildExamCategories(BuildContext context) {
-    final exams = [
-      {
-        'name': 'IIT-JEE',
-        'icon': Icons.science,
-        'color': AppColors.primary,
-        'route': '/exam/iit-jee'
-      },
-      {
-        'name': 'NEET',
-        'icon': Icons.medical_services,
-        'color': AppColors.secondary,
-        'route': '/exam/neet'
-      },
-      {
-        'name': 'CBSE',
-        'icon': Icons.school,
-        'color': AppColors.accent,
-        'route': '/exam/cbse'
-      },
+  // ── Banner Carousel ──────────────────────────────────────────────────────────
+  Widget _buildBanner(BuildContext context) {
+    final banners = [
+      _BannerData(
+        title: 'Meet Your Favorite\nEducators',
+        subtitle: 'Join live classes with India\'s top faculty',
+        gradient: [kPrimary, kPrimaryDark],
+        icon: Icons.people_alt_rounded,
+      ),
+      _BannerData(
+        title: 'Start Teaching\nOnline Today',
+        subtitle: 'Share your knowledge and earn with us',
+        gradient: [const Color(0xFF7C3AED), const Color(0xFF5B21B6)],
+        icon: Icons.cast_for_education_rounded,
+      ),
+      _BannerData(
+        title: 'Crack Your Dream\nExam',
+        subtitle: 'Access premium test series & materials',
+        gradient: [const Color(0xFF059669), const Color(0xFF047857)],
+        icon: Icons.emoji_events_rounded,
+      ),
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Exam Preparation',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              TextButton(
-                onPressed: () => context.go('/exams'),
-                child: const Text('See All'),
-              ),
-            ],
+        CarouselSlider(
+          options: CarouselOptions(
+            height: 172,
+            autoPlay: true,
+            autoPlayInterval: const Duration(seconds: 4),
+            enlargeCenterPage: false,
+            viewportFraction: 0.92,
+            onPageChanged: (i, _) => setState(() => _bannerIndex = i),
           ),
+          items: banners.map((b) => _bannerCard(b)).toList(),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: exams.length,
-            itemBuilder: (context, index) {
-              final exam = exams[index];
-              return GestureDetector(
-                onTap: () => context.push(exam['route'] as String),
-                child: Container(
-                  width: 110,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: (exam['color'] as Color).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: (exam['color'] as Color).withOpacity(0.3),
-                    ),
-                  ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            banners.length,
+            (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _bannerIndex == i ? 20 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: _bannerIndex == i ? kPrimary : kPrimaryMid,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bannerCard(_BannerData b) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: b.gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Stack(
+        children: [
+          // decorative circle
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.07),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: -30,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.07),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Row(
+              children: [
+                Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: exam['color'] as Color,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          exam['icon'] as IconData,
+                      Text(
+                        b.title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          size: 24,
+                          height: 1.25,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Text(
-                        exam['name'] as String,
+                        b.subtitle,
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: exam['color'] as Color,
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.85),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Explore Now',
+                          style: TextStyle(
+                            color: b.gradient.first,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeaturesSection(BuildContext context) {
-    final features = [
-      {
-        'name': 'Courses',
-        'icon': Icons.play_circle_outline,
-        'route': '/courses'
-      },
-      {
-        'name': 'Test Series',
-        'icon': Icons.assignment_outlined,
-        'route': '/test-series'
-      },
-      {
-        'name': 'Webinars',
-        'icon': Icons.videocam_outlined,
-        'route': '/webinars'
-      },
-      {
-        'name': 'Educators',
-        'icon': Icons.people_outline,
-        'route': '/educators'
-      },
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Explore Features',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 0.85,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(b.icon, color: Colors.white, size: 32),
+                ),
+              ],
             ),
-            itemCount: features.length,
-            itemBuilder: (context, index) {
-              final feature = features[index];
-              return GestureDetector(
-                onTap: () => context.push(feature['route'] as String),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.grey100,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        feature['icon'] as IconData,
-                        color: AppColors.primary,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      feature['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Actions',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionCard(
-                  context,
-                  icon: Icons.play_circle_fill,
-                  title: 'Start Learning',
-                  subtitle: 'Browse courses',
-                  color: AppColors.primary,
-                  onTap: () => context.push('/courses'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionCard(
-                  context,
-                  icon: Icons.assignment,
-                  title: 'Take Test',
-                  subtitle: 'Practice now',
-                  color: AppColors.secondary,
-                  onTap: () => context.push('/test-series'),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionCard(
-    BuildContext context, {
+  // ── Section Header ───────────────────────────────────────────────────────────
+  Widget _buildSectionHeader(BuildContext context, String title,
+      {VoidCallback? onSeeAll}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: kPrimaryBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'See All',
+                  style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Exam Categories ──────────────────────────────────────────────────────────
+  Widget _buildExamCategories(BuildContext context) {
+    final exams = [
+      _ExamData(
+          'IIT-JEE',
+          Icons.science_rounded,
+          [const Color(0xFF2563EB), const Color(0xFF1D4ED8)],
+          '/exam-content/iit-jee'),
+      _ExamData(
+          'NEET',
+          Icons.medical_services_rounded,
+          [const Color(0xFF7C3AED), const Color(0xFF5B21B6)],
+          '/exam-content/neet'),
+      _ExamData(
+          'CBSE',
+          Icons.school_rounded,
+          [const Color(0xFF059669), const Color(0xFF047857)],
+          '/exam-content/cbse'),
+      _ExamData(
+          'UPSC',
+          Icons.account_balance_rounded,
+          [const Color(0xFFD97706), const Color(0xFFB45309)],
+          '/exam-content/upsc'),
+    ];
+
+    return SizedBox(
+      height: 110,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: exams.length,
+        itemBuilder: (context, i) {
+          final e = exams[i];
+          return GestureDetector(
+            onTap: () => context.push(e.route),
+            child: Container(
+              width: 90,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: e.gradient.first.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: e.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(e.icon, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    e.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: e.gradient.first,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Features Grid ────────────────────────────────────────────────────────────
+  Widget _buildFeaturesGrid(BuildContext context, bool isDark) {
+    final features = [
+      _FeatureData('Courses', Icons.play_circle_rounded, kPrimary, '/courses'),
+      _FeatureData('Test Series', Icons.assignment_rounded,
+          const Color(0xFF7C3AED), '/test-series'),
+      _FeatureData('Webinars', Icons.videocam_rounded, const Color(0xFF059669),
+          '/webinars'),
+      _FeatureData('Educators', Icons.supervisor_account_rounded,
+          const Color(0xFFD97706), '/educators'),
+      _FeatureData('Live Class', Icons.live_tv_rounded, const Color(0xFFDC2626),
+          '/live'),
+      _FeatureData('Notes', Icons.sticky_note_2_rounded,
+          const Color(0xFF0891B2), '/notes'),
+      _FeatureData(
+          'Doubts', Icons.help_rounded, const Color(0xFF9333EA), '/doubts'),
+      _FeatureData(
+          'Books', Icons.menu_book_rounded, const Color(0xFF16A34A), '/books'),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          childAspectRatio: 0.82,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: features.length,
+        itemBuilder: (context, i) {
+          final f = features[i];
+          return GestureDetector(
+            onTap: () => context.push(f.route),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: f.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(f.icon, color: f.color, size: 26),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  f.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : const Color(0xFF374151),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Quick Actions ────────────────────────────────────────────────────────────
+  Widget _buildQuickActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Quick Actions',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _quickActionCard(
+                  icon: Icons.play_circle_fill_rounded,
+                  title: 'Start Learning',
+                  subtitle: 'Browse Courses',
+                  gradient: [kPrimary, kPrimaryDark],
+                  onTap: () => context.push('/courses'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _quickActionCard(
+                  icon: Icons.assignment_turned_in_rounded,
+                  title: 'Take a Test',
+                  subtitle: 'Practice Now',
+                  gradient: [const Color(0xFF7C3AED), const Color(0xFF5B21B6)],
+                  onTap: () => context.push('/test-series'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Wide single card
+          _quickActionCard(
+            icon: Icons.live_tv_rounded,
+            title: 'Join Live Class',
+            subtitle: '3 sessions starting today — tap to join',
+            gradient: [const Color(0xFFDC2626), const Color(0xFFB91C1C)],
+            onTap: () => context.push('/live'),
+            wide: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color color,
+    required List<Color> gradient,
     required VoidCallback onTap,
+    bool wide = false,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color, color.withOpacity(0.8)],
+            colors: gradient,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: gradient.first.withOpacity(0.30),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 32),
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -435,87 +622,168 @@ class HomeScreen extends ConsumerWidget {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      letterSpacing: -0.2,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white.withOpacity(0.8),
-              size: 16,
-            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white.withOpacity(0.7), size: 14),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatsSection(BuildContext context) {
+  // ── Stats Section ────────────────────────────────────────────────────────────
+  Widget _buildStatsSection(BuildContext context, bool isDark) {
     final stats = [
-      {'label': 'Educators', 'value': '500+', 'icon': Icons.people},
-      {'label': 'Courses', 'value': '1000+', 'icon': Icons.play_circle},
-      {'label': 'Students', 'value': '10K+', 'icon': Icons.school},
-      {'label': 'Tests', 'value': '5000+', 'icon': Icons.assignment},
+      _StatData('500+', 'Educators', Icons.people_rounded),
+      _StatData('1K+', 'Courses', Icons.play_circle_rounded),
+      _StatData('10K+', 'Students', Icons.school_rounded),
+      _StatData('5K+', 'Tests', Icons.assignment_rounded),
     ];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Trusted by thousands',
-            style: Theme.of(context).textTheme.headlineSmall,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kPrimary, kPrimaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: stats.map((stat) {
-              return Column(
-                children: [
-                  Icon(
-                    stat['icon'] as IconData,
-                    color: AppColors.primary,
-                    size: 28,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: kPrimary.withOpacity(0.35),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    stat['value'] as String,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    stat['label'] as String,
+                  child: const Text(
+                    'Trusted Platform',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.grey600,
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              );
-            }).toList(),
-          ),
-        ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Trusted by thousands\nacross India',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: stats
+                  .map(
+                    (s) => Column(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(s.icon, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          s.value,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s.label,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.75),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+// ── Data Models ───────────────────────────────────────────────────────────────
+class _BannerData {
+  final String title, subtitle;
+  final List<Color> gradient;
+  final IconData icon;
+  const _BannerData(
+      {required this.title,
+      required this.subtitle,
+      required this.gradient,
+      required this.icon});
+}
+
+class _ExamData {
+  final String name, route;
+  final IconData icon;
+  final List<Color> gradient;
+  const _ExamData(this.name, this.icon, this.gradient, this.route);
+}
+
+class _FeatureData {
+  final String name, route;
+  final IconData icon;
+  final Color color;
+  const _FeatureData(this.name, this.icon, this.color, this.route);
+}
+
+class _StatData {
+  final String value, label;
+  final IconData icon;
+  const _StatData(this.value, this.label, this.icon);
 }

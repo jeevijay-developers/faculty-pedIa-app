@@ -1,6 +1,10 @@
 import fs from "fs/promises";
 import { validationResult } from "express-validator";
+import Course from "../models/course.js";
 import Educator from "../models/educator.js";
+import LiveClass from "../models/liveClass.js";
+import TestSeries from "../models/testSeries.js";
+import Webinar from "../models/webinar.js";
 import { getVimeoStatus, uploadVideoAndResolve } from "../util/vimeo.js";
 import { createContact, createFundAccount } from "../services/razorpay.service.js";
 
@@ -554,7 +558,7 @@ export const addFollower = async (req, res) => {
     const { id } = req.params;
     const { studentId } = req.body;
 
-    const educator = await Educator.findById(id);
+    const educator = await Educator.findById(id).select("followers");
 
     if (!educator) {
       return res.status(404).json({
@@ -571,14 +575,17 @@ export const addFollower = async (req, res) => {
       });
     }
 
-    educator.followers.push(studentId);
-    await educator.save();
+    const updated = await Educator.findByIdAndUpdate(
+      id,
+      { $addToSet: { followers: studentId } },
+      { new: true, runValidators: false },
+    ).select("followers");
 
     res.status(200).json({
       success: true,
       message: "Follower added successfully",
       data: {
-        followerCount: educator.followers.length,
+        followerCount: updated?.followers?.length ?? educator.followers.length,
       },
     });
   } catch (error) {
@@ -597,7 +604,7 @@ export const removeFollower = async (req, res) => {
     const { id } = req.params;
     const { studentId } = req.body;
 
-    const educator = await Educator.findById(id);
+    const educator = await Educator.findById(id).select("followers");
 
     if (!educator) {
       return res.status(404).json({
@@ -615,14 +622,17 @@ export const removeFollower = async (req, res) => {
       });
     }
 
-    educator.followers.splice(followerIndex, 1);
-    await educator.save();
+    const updated = await Educator.findByIdAndUpdate(
+      id,
+      { $pull: { followers: studentId } },
+      { new: true, runValidators: false },
+    ).select("followers");
 
     res.status(200).json({
       success: true,
       message: "Follower removed successfully",
       data: {
-        followerCount: educator.followers.length,
+        followerCount: updated?.followers?.length ?? educator.followers.length,
       },
     });
   } catch (error) {
@@ -714,6 +724,40 @@ export const updateEducatorRating = async (req, res) => {
       });
     }
 
+    const enrollmentChecks = await Promise.all([
+      Course.exists({
+        educatorID: id,
+        isActive: true,
+        status: { $ne: "deleted" },
+        $or: [{ enrolledStudents: studentId }, { purchase: studentId }],
+      }),
+      TestSeries.exists({
+        educatorId: id,
+        isActive: true,
+        enrolledStudents: studentId,
+      }),
+      Webinar.exists({
+        educatorID: id,
+        isActive: true,
+        studentEnrolled: studentId,
+      }),
+      LiveClass.exists({
+        educatorID: id,
+        isActive: true,
+        "enrolledStudents.studentId": studentId,
+      }),
+    ]);
+
+    const hasEnrollment = enrollmentChecks.some((match) => Boolean(match));
+
+    if (!hasEnrollment) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only students enrolled in this educator's content can rate",
+      });
+    }
+
     if (!Array.isArray(educator.studentRatings)) {
       educator.studentRatings = [];
     }
@@ -746,7 +790,7 @@ export const updateEducatorRating = async (req, res) => {
     educator.rating.average = parseFloat(newAverage.toFixed(2));
     educator.rating.count = totalRatings;
 
-    await educator.save();
+    await educator.save({ validateBeforeSave: false });
 
     res.status(200).json({
       success: true,

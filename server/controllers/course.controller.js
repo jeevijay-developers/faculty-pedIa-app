@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import { validationResult } from "express-validator";
 import Course from "../models/course.js";
+import Student from "../models/student.js";
 import notificationService from "../services/notification.service.js";
 import { getVimeoStatus, uploadVideoAndResolve } from "../util/vimeo.js";
 
@@ -1100,6 +1101,107 @@ export const updateCourseRating = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating rating:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Add or update a course review
+export const addCourseReview = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { studentId, rating, comment } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    if (!comment || comment.trim().length < 3) {
+      return res.status(400).json({
+        message: "Review comment must be at least 3 characters",
+      });
+    }
+
+    const course = await Course.findOne({
+      _id: id,
+      isActive: true,
+      status: { $ne: "deleted" },
+    });
+
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const studentIdString = studentId.toString();
+    const isEnrolled =
+      course.enrolledStudents?.some(
+        (entry) => entry.toString() === studentIdString
+      ) ||
+      course.purchase?.some(
+        (entry) => entry.toString() === studentIdString
+      );
+
+    if (!isEnrolled) {
+      return res.status(403).json({
+        message: "Only enrolled students can submit reviews",
+      });
+    }
+
+    const student = await Student.findById(studentId)
+      .select("name image")
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const existingIndex = course.reviews.findIndex(
+      (review) => review.student?.toString() === studentIdString
+    );
+
+    if (existingIndex > -1) {
+      course.reviews[existingIndex].rating = rating;
+      course.reviews[existingIndex].comment = comment.trim();
+      course.reviews[existingIndex].updatedAt = new Date();
+    } else {
+      course.reviews.push({
+        student: studentId,
+        name: student.name,
+        avatar: student.image || "",
+        rating,
+        comment: comment.trim(),
+      });
+    }
+
+    const totalRatings = course.reviews.length;
+    const ratingSum = course.reviews.reduce(
+      (sum, entry) => sum + Number(entry.rating ?? 0),
+      0
+    );
+
+    course.rating = totalRatings > 0 ? ratingSum / totalRatings : 0;
+    course.ratingCount = totalRatings;
+    course.updatedAt = Date.now();
+
+    await course.save();
+
+    res.status(200).json({
+      message:
+        existingIndex > -1
+          ? "Review updated successfully"
+          : "Review submitted successfully",
+      data: {
+        rating: course.rating,
+        ratingCount: course.ratingCount,
+        reviews: course.reviews,
+      },
+    });
+  } catch (error) {
+    console.error("Error adding course review:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

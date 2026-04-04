@@ -220,6 +220,44 @@ const courseSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  reviews: [
+    {
+      student: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Student",
+        required: true,
+      },
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      avatar: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      rating: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 5,
+      },
+      comment: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   purchase: [
     {
       type: mongoose.Schema.Types.ObjectId,

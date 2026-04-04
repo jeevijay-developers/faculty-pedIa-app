@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/models/hamburger_model.dart';
 import '../../../shared/widgets/user_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -12,7 +13,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
-    
+
     if (user == null) {
       return const Center(child: Text('Please login'));
     }
@@ -27,6 +28,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
+      drawer: const HamburgerDrawer(),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -68,7 +70,8 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
@@ -85,7 +88,7 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            
+
             // Stats
             Padding(
               padding: const EdgeInsets.all(16),
@@ -107,7 +110,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            
+
             // Menu Items
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -148,21 +151,6 @@ class ProfileScreen extends ConsumerWidget {
                     icon: Icons.help_outline,
                     title: 'Help & Support',
                     onTap: () {},
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.logout,
-                    title: 'Logout',
-                    titleColor: AppColors.error,
-                    iconColor: AppColors.error,
-                    onTap: () async {
-                      final confirm = await _showLogoutDialog(context);
-                      if (confirm && context.mounted) {
-                        await ref.read(authStateProvider.notifier).logout();
-                        context.go('/login');
-                      }
-                    },
                   ),
                 ],
               ),
@@ -228,27 +216,5 @@ class ProfileScreen extends ConsumerWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
     );
-  }
-
-  Future<bool> _showLogoutDialog(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
   }
 }
