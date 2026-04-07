@@ -268,8 +268,11 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
     final educator = widget.educator;
     final educatorName =
         educator.displayName.isNotEmpty ? educator.displayName : 'Educator';
+    final hasPayPerHour = (educator.payPerHourFee ?? 0) > 0;
     final subjectChips = _buildSubjectChips(educator);
     final coursesAsync = ref.watch(educatorCoursesProvider(widget.educatorId));
+    final testSeriesAsync =
+        ref.watch(educatorTestSeriesProvider(widget.educatorId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -335,9 +338,10 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
             ),
 
             // ── Book 1:1 Session ──
-            SliverToBoxAdapter(
-              child: _BookSessionCard(educator: educator),
-            ),
+            if (hasPayPerHour)
+              SliverToBoxAdapter(
+                child: _BookSessionCard(educator: educator),
+              ),
 
             // ── Intro Video ──
             SliverToBoxAdapter(
@@ -379,6 +383,7 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
                 child: _RatingAndReviewsSection(
                   educator: educator,
                   coursesAsync: coursesAsync,
+                  testSeriesAsync: testSeriesAsync,
                   myRating: _myRating,
                   onRate: _submitRating,
                 ),
@@ -789,12 +794,14 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
 class _RatingAndReviewsSection extends StatelessWidget {
   final Educator educator;
   final AsyncValue<List<Course>> coursesAsync;
+  final AsyncValue<List<TestSeries>> testSeriesAsync;
   final int myRating;
   final ValueChanged<int> onRate;
 
   const _RatingAndReviewsSection({
     required this.educator,
     required this.coursesAsync,
+    required this.testSeriesAsync,
     required this.myRating,
     required this.onRate,
   });
@@ -825,28 +832,52 @@ class _RatingAndReviewsSection extends StatelessWidget {
         const SizedBox(height: 12),
         _RatingInputRow(myRating: myRating, onRate: onRate),
         const SizedBox(height: 16),
-        coursesAsync.when(
+        _buildReviews(),
+      ],
+    );
+  }
+
+  Widget _buildReviews() {
+    return coursesAsync.when(
+      loading: () => const _ReviewLoadingPlaceholder(),
+      error: (e, _) => _ReviewEmptyState(
+        message: 'Failed to load reviews',
+        subtitle: e.toString(),
+      ),
+      data: (courses) {
+        return testSeriesAsync.when(
           loading: () => const _ReviewLoadingPlaceholder(),
           error: (e, _) => _ReviewEmptyState(
             message: 'Failed to load reviews',
             subtitle: e.toString(),
           ),
-          data: (courses) {
-            final reviews = _aggregateCourseReviews(courses);
+          data: (series) {
+            final reviews = <_AggregatedReview>[
+              ..._aggregateCourseReviews(courses),
+              ..._aggregateTestSeriesReviews(series),
+            ];
+
             if (reviews.isEmpty) {
               return const _ReviewEmptyState(
                 message: 'No reviews yet',
-                subtitle: 'Reviews will appear after students rate courses.',
+                subtitle:
+                    'Reviews will appear after students rate courses or test series.',
               );
             }
+
+            reviews.sort(
+              (a, b) => (b.updatedAt ?? DateTime(0)).compareTo(
+                a.updatedAt ?? DateTime(0),
+              ),
+            );
 
             final visible = reviews.take(4).toList();
             return Column(
               children: visible.map((review) => _ReviewCard(review)).toList(),
             );
           },
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -873,6 +904,27 @@ class _RatingAndReviewsSection extends StatelessWidget {
         a.updatedAt ?? DateTime(0),
       ),
     );
+    return aggregated;
+  }
+
+  List<_AggregatedReview> _aggregateTestSeriesReviews(
+      List<TestSeries> seriesList) {
+    final aggregated = <_AggregatedReview>[];
+    for (final series in seriesList) {
+      for (final review in series.reviews) {
+        if ((review.comment ?? '').trim().isEmpty) continue;
+        aggregated.add(
+          _AggregatedReview(
+            courseTitle: series.title,
+            name: review.name ?? 'Student',
+            avatar: review.avatar,
+            rating: review.rating ?? 0,
+            comment: review.comment ?? '',
+            updatedAt: review.updatedAt ?? review.createdAt,
+          ),
+        );
+      }
+    }
     return aggregated;
   }
 }
@@ -1502,6 +1554,13 @@ class _BookSessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fee = educator.payPerHourFee ?? 0;
+    if (fee <= 0) {
+      return const SizedBox.shrink();
+    }
+    final feeText =
+        fee % 1 == 0 ? fee.toStringAsFixed(0) : fee.toStringAsFixed(2);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -1536,18 +1595,18 @@ class _BookSessionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 RichText(
-                  text: const TextSpan(
+                  text: TextSpan(
                     children: [
                       TextSpan(
-                        text: '₹800 ',
-                        style: TextStyle(
+                        text: '₹$feeText ',
+                        style: const TextStyle(
                           fontFamily: 'Manrope',
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
                           color: _EduColors.primary,
                         ),
                       ),
-                      TextSpan(
+                      const TextSpan(
                         text: '/ hour',
                         style: TextStyle(
                           fontSize: 13,

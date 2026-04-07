@@ -60,22 +60,14 @@ class ExamContentTileScreen extends StatelessWidget {
           label: 'Test Series',
           subtitle: 'Practice exams',
           gradient: [const Color(0xFFD97706), const Color(0xFFB45309)],
-          onTap: (ctx) => ctx.go('/test-series'),
+          onTap: (ctx) => ctx.go('/test-series?exam=$examType'),
         ),
         _TileData(
           icon: Icons.article_rounded,
           label: 'Posts',
           subtitle: 'Coming soon',
           gradient: [const Color(0xFF64748B), const Color(0xFF475569)],
-          onTap: (ctx) => ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(
-              content: const Text('Posts coming soon!'),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              backgroundColor: const Color(0xFF1E293B),
-            ),
-          ),
+          onTap: (ctx) => ctx.go('/posts?exam=$examType'),
         ),
       ];
 
@@ -136,7 +128,13 @@ class ExamContentTileScreen extends StatelessWidget {
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
         child: GestureDetector(
-          onTap: () => context.pop(),
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),

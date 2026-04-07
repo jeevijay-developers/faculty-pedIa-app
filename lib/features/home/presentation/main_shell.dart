@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   final Widget child;
-  
+
   const MainShell({super.key, required this.child});
 
   @override
@@ -18,6 +18,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (location.startsWith('/home')) return 0;
     if (location.startsWith('/exams')) return 1;
     if (location.startsWith('/educators')) return 2;
+    if (location.startsWith('/dashboard')) return 3;
     if (location.startsWith('/profile')) return 3;
     return 0;
   }
@@ -42,7 +43,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _calculateSelectedIndex(context);
-    
+
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: Container(

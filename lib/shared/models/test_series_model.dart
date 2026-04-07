@@ -16,9 +16,13 @@ class TestSeries {
   final DateTime? endDate;
   final String? status;
   final bool? isActive;
+  final double? rating;
+  final int? ratingCount;
   final DateTime? createdAt;
   final List<Test>? tests;
-  
+  final List<String> enrolledStudentIds;
+  final List<TestSeriesReview> reviews;
+
   TestSeries({
     required this.id,
     required this.title,
@@ -37,10 +41,14 @@ class TestSeries {
     this.endDate,
     this.status,
     this.isActive,
+    this.rating,
+    this.ratingCount,
     this.createdAt,
     this.tests,
+    this.enrolledStudentIds = const [],
+    this.reviews = const [],
   });
-  
+
   String get imageUrl => image?.url ?? '';
 
   factory TestSeries.fromJson(Map<String, dynamic> json) {
@@ -49,36 +57,53 @@ class TestSeries {
       title: json['title'] ?? '',
       description: json['description'],
       slug: json['slug'],
-      image: json['image'] != null ? TestSeriesImage.fromJson(json['image']) : null,
+      image: json['image'] != null
+          ? TestSeriesImage.fromJson(json['image'])
+          : null,
       subject: _parseStringList(json['subject']),
       specialization: _parseStringList(json['specialization']),
       educatorId: _parseEducatorId(json),
       educatorName: _parseEducatorName(json),
-      fees: (json['fees'] as num?)?.toDouble() ?? (json['price'] as num?)?.toDouble(),
+      fees: (json['fees'] as num?)?.toDouble() ??
+          (json['price'] as num?)?.toDouble(),
       discount: (json['discount'] as num?)?.toDouble(),
-      totalTests: (json['totalTests'] as num?)?.toInt()
-          ?? (json['testCount'] as num?)?.toInt()
-          ?? (json['numberOfTests'] as num?)?.toInt(),
-      enrolledCount: (json['enrolledCount'] as num?)?.toInt()
-          ?? (json['enrolledStudents'] is List ? (json['enrolledStudents'] as List).length : null),
-      startDate: json['startDate'] != null ? DateTime.tryParse(json['startDate'].toString()) : null,
-      endDate: json['endDate'] != null ? DateTime.tryParse(json['endDate'].toString()) : null,
+      totalTests: _parseInt(json['totalTests']) ??
+          _parseInt(json['testCount']) ??
+          _parseInt(json['numberOfTests']),
+      enrolledCount: _parseInt(json['enrolledCount']) ??
+          (json['enrolledStudents'] is List
+              ? (json['enrolledStudents'] as List).length
+              : null),
+      startDate: json['startDate'] != null
+          ? DateTime.tryParse(json['startDate'].toString())
+          : null,
+      endDate: json['endDate'] != null
+          ? DateTime.tryParse(json['endDate'].toString())
+          : null,
       status: json['status'],
       isActive: json['isActive'],
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      rating: (json['rating'] as num?)?.toDouble(),
+      ratingCount: (json['ratingCount'] as num?)?.toInt(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
       tests: (json['tests'] is List)
           ? (json['tests'] as List).map((e) {
-        if (e is Map<String, dynamic>) {
-          return Test.fromJson(e);
-        } else {
-          return Test(id: e.toString());
-        }
-      }).toList()
+              if (e is Map<String, dynamic>) {
+                return Test.fromJson(e);
+              } else {
+                return Test(id: e.toString());
+              }
+            }).toList()
           : null,
+      enrolledStudentIds: _parseIdList(json['enrolledStudents']),
+      reviews: (json['reviews'] as List<dynamic>?)
+              ?.map((e) => TestSeriesReview.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 
-  
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return [];
     if (value is String) return [value];
@@ -87,22 +112,49 @@ class TestSeries {
     }
     return [];
   }
-  
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   static String? _parseEducatorId(Map<String, dynamic> json) {
-    final educator = json['educatorId'] ?? json['educatorID'] ?? json['educator'];
+    final educator =
+        json['educatorId'] ?? json['educatorID'] ?? json['educator'];
     if (educator is String) return educator;
     if (educator is Map) return educator['_id']?.toString();
     return null;
   }
-  
+
   static String? _parseEducatorName(Map<String, dynamic> json) {
-    final educator = json['educatorId'] ?? json['educatorID'] ?? json['educator'];
+    final educator =
+        json['educatorId'] ?? json['educatorID'] ?? json['educator'];
     if (educator is Map) {
       return educator['name'] ?? educator['fullName'];
     }
     return json['educatorName'];
   }
-  
+
+  static List<String> _parseIdList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value
+          .map((entry) {
+            if (entry is String) return entry;
+            if (entry is Map && entry['_id'] != null) {
+              return entry['_id'].toString();
+            }
+            return '';
+          })
+          .where((entry) => entry.isNotEmpty)
+          .toList();
+    }
+    return [];
+  }
+
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -122,7 +174,62 @@ class TestSeries {
       'endDate': endDate?.toIso8601String(),
       'status': status,
       'isActive': isActive,
+      'rating': rating,
+      'ratingCount': ratingCount,
       'createdAt': createdAt?.toIso8601String(),
+      'enrolledStudents': enrolledStudentIds,
+      'reviews': reviews.map((review) => review.toJson()).toList(),
+    };
+  }
+}
+
+class TestSeriesReview {
+  final String? studentId;
+  final String? name;
+  final String? avatar;
+  final double? rating;
+  final String? comment;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  TestSeriesReview({
+    this.studentId,
+    this.name,
+    this.avatar,
+    this.rating,
+    this.comment,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory TestSeriesReview.fromJson(dynamic json) {
+    if (json is! Map<String, dynamic>) {
+      return TestSeriesReview();
+    }
+    return TestSeriesReview(
+      studentId: json['student']?.toString(),
+      name: json['name']?.toString(),
+      avatar: json['avatar']?.toString(),
+      rating: (json['rating'] as num?)?.toDouble(),
+      comment: json['comment']?.toString(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'student': studentId,
+      'name': name,
+      'avatar': avatar,
+      'rating': rating,
+      'comment': comment,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }
@@ -130,9 +237,9 @@ class TestSeries {
 class TestSeriesImage {
   final String? url;
   final String? publicId;
-  
+
   TestSeriesImage({this.url, this.publicId});
-  
+
   factory TestSeriesImage.fromJson(dynamic json) {
     if (json is String) {
       return TestSeriesImage(url: json);
@@ -145,7 +252,7 @@ class TestSeriesImage {
     }
     return TestSeriesImage();
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'url': url,
@@ -168,7 +275,7 @@ class Test {
   final String? status;
   final bool? isActive;
   final List<Question>? questions;
-  
+
   Test({
     required this.id,
     this.title,
@@ -190,28 +297,31 @@ class Test {
       id: json['_id'] ?? json['id'] ?? '',
       title: json['title'],
       description: json['description'],
-      duration: json['duration'],
-      totalQuestions: json['totalQuestions'] ?? json['questionCount'],
-      totalMarks: json['totalMarks'],
-      passingMarks: json['passingMarks'],
-      negativeMarking: json['negativeMarking'],
-      startTime: json['startTime'] != null ? DateTime.tryParse(json['startTime']) : null,
-      endTime: json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
+      duration: TestSeries._parseInt(json['duration']),
+      totalQuestions: TestSeries._parseInt(json['totalQuestions']) ??
+          TestSeries._parseInt(json['questionCount']),
+      totalMarks: TestSeries._parseInt(json['totalMarks']),
+      passingMarks: TestSeries._parseInt(json['passingMarks']),
+      negativeMarking: TestSeries._parseInt(json['negativeMarking']),
+      startTime: json['startTime'] != null
+          ? DateTime.tryParse(json['startTime'])
+          : null,
+      endTime:
+          json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
       status: json['status'],
       isActive: json['isActive'],
       questions: (json['questions'] is List)
           ? (json['questions'] as List).map((e) {
-        if (e is Map<String, dynamic>) {
-          return Question.fromJson(e);
-        } else {
-          return Question(id: e.toString());
-        }
-      }).toList()
+              if (e is Map<String, dynamic>) {
+                return Question.fromJson(e);
+              } else {
+                return Question(id: e.toString());
+              }
+            }).toList()
           : null,
-
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -241,7 +351,7 @@ class Question {
   final int? negativeMarks;
   final String? subject;
   final String? topic;
-  
+
   Question({
     required this.id,
     this.text,
@@ -254,17 +364,18 @@ class Question {
     this.subject,
     this.topic,
   });
-  
+
   factory Question.fromJson(Map<String, dynamic> json) {
     return Question(
       id: json['_id'] ?? json['id'] ?? '',
       text: json['text'] ?? json['question'],
       imageUrl: json['imageUrl'] ?? json['image'],
       options: (json['options'] as List<dynamic>?)
-          ?.asMap()
-          .entries
-          .map((e) => Option.fromJson(e.value, e.key))
-          .toList() ?? [],
+              ?.asMap()
+              .entries
+              .map((e) => Option.fromJson(e.value, e.key))
+              .toList() ??
+          [],
       correctOption: json['correctOption'] ?? json['correctAnswer'],
       explanation: json['explanation'],
       marks: json['marks'],
@@ -273,7 +384,7 @@ class Question {
       topic: json['topic'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -294,9 +405,9 @@ class Option {
   final int index;
   final String? text;
   final String? imageUrl;
-  
+
   Option({required this.index, this.text, this.imageUrl});
-  
+
   factory Option.fromJson(dynamic json, int index) {
     if (json is String) {
       return Option(index: index, text: json);
@@ -310,7 +421,7 @@ class Option {
     }
     return Option(index: index);
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'index': index,

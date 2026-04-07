@@ -12,6 +12,7 @@ class Educator extends User {
   final String? status;
   final String? introVideoLink;
   final String? introVideoVimeoUri;
+  final double? payPerHourFee;
 
   Educator({
     required super.id,
@@ -36,6 +37,7 @@ class Educator extends User {
     this.status,
     this.introVideoLink,
     this.introVideoVimeoUri,
+    this.payPerHourFee,
   }) : super(role: 'educator');
 
   String get displaySubjects {
@@ -98,6 +100,7 @@ class Educator extends User {
       status: json['status'],
       introVideoLink: json['introVideo'] ?? json['introVideoLink'],
       introVideoVimeoUri: json['introVideoVimeoUri'],
+      payPerHourFee: (json['payPerHourFee'] as num?)?.toDouble(),
     );
   }
 
@@ -180,6 +183,7 @@ class Educator extends User {
       'status': status,
       'introVideoLink': introVideoLink,
       'introVideoVimeoUri': introVideoVimeoUri,
+      'payPerHourFee': payPerHourFee,
     };
   }
 }

@@ -8,202 +8,697 @@ import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/user_widgets.dart';
 
-// Educators Provider
-final educatorsProvider = FutureProvider.autoDispose<List<Educator>>((ref) async {
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const kPrimary = Color(0xFF2563EB);
+const kPrimaryDark = Color(0xFF1D4ED8);
+const kPrimaryBg = Color(0xFFEFF6FF);
+const kPrimaryMid = Color(0xFFBFDBFE);
+
+const kSurface = Colors.white;
+const kSurfaceDark = Color(0xFF1E293B);
+const kBgLight = Color(0xFFF8FAFC);
+const kBgDark = Color(0xFF0F172A);
+const kText1Light = Color(0xFF0F172A);
+const kText2Light = Color(0xFF64748B);
+const kText3Light = Color(0xFF94A3B8);
+const kText1Dark = Colors.white;
+const kText2Dark = Color(0xFF94A3B8);
+const kDivLight = Color(0xFFF1F5F9);
+
+// ── Provider ───────────────────────────────────────────────────────────────────
+final educatorsProvider =
+    FutureProvider.autoDispose<List<Educator>>((ref) async {
   final api = ApiService();
   final response = await api.get('/api/educators');
   final data = response.data;
-  
-  List<dynamic> educatorsList = [];
-  if (data is Map && data['educators'] != null) {
-    educatorsList = data['educators'] as List;
+
+  List<dynamic> list = [];
+  if (data is Map) {
+    if (data['educators'] is List) {
+      list = data['educators'] as List;
+    } else if (data['data'] is Map && data['data']['educators'] is List) {
+      list = data['data']['educators'] as List;
+    }
   } else if (data is List) {
-    educatorsList = data;
+    list = data;
   }
-  
-  return educatorsList.map((e) => Educator.fromJson(e)).toList();
+  return list.map((e) => Educator.fromJson(e)).toList();
 });
 
-class EducatorsScreen extends ConsumerWidget {
+// ── Screen ─────────────────────────────────────────────────────────────────────
+class EducatorsScreen extends ConsumerStatefulWidget {
   const EducatorsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final educatorsAsync = ref.watch(educatorsProvider);
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Educators'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Implement filters
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(educatorsProvider);
-        },
-        child: educatorsAsync.when(
-          loading: () => const ShimmerList(itemCount: 6, itemHeight: 140),
-          error: (error, stack) => ErrorStateWidget(
-            message: error.toString(),
-            onRetry: () => ref.invalidate(educatorsProvider),
-          ),
-          data: (educators) {
-            if (educators.isEmpty) {
-              return const EmptyStateWidget(
-                icon: Icons.people_outline,
-                title: 'No Educators Found',
-                subtitle: 'Check back later for new educators',
-              );
-            }
-            
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: educators.length,
-              itemBuilder: (context, index) {
-                return _EducatorCard(educator: educators[index]);
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
+  ConsumerState<EducatorsScreen> createState() => _EducatorsScreenState();
 }
 
-class _EducatorCard extends StatelessWidget {
-  final Educator educator;
-  
-  const _EducatorCard({required this.educator});
+class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  String _activeFilter = 'All';
+
+  static const _filters = ['All', 'Active', 'Top Rated', 'Popular'];
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Educator> _applyFilters(List<Educator> list) {
+    var result = list;
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result
+          .where((e) =>
+              e.displayName.toLowerCase().contains(q) ||
+              e.displaySubjects.toLowerCase().contains(q) ||
+              (e.bio?.toLowerCase().contains(q) ?? false))
+          .toList();
+    }
+
+    switch (_activeFilter) {
+      case 'Active':
+        result = result.where((e) => e.status == 'active').toList();
+        break;
+      case 'Top Rated':
+        result = result.where((e) => (e.rating?.average ?? 0) >= 4.0).toList()
+          ..sort((a, b) =>
+              (b.rating?.average ?? 0).compareTo(a.rating?.average ?? 0));
+        break;
+      case 'Popular':
+        result = result.toList()
+          ..sort((a, b) => b.followerCount.compareTo(a.followerCount));
+        break;
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => context.push('/educator/${educator.id}'),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              UserAvatar(
-                imageUrl: educator.imageUrl,
-                name: educator.displayName,
-                size: 70,
-                showBorder: educator.status == 'active',
-                borderColor: AppColors.success,
+    final educatorsAsync = ref.watch(educatorsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? kBgDark : kBgLight,
+      body: RefreshIndicator(
+        color: kPrimary,
+        onRefresh: () async => ref.invalidate(educatorsProvider),
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(context, isDark),
+            SliverToBoxAdapter(child: _buildSearchAndFilter(isDark)),
+            SliverToBoxAdapter(
+              child: educatorsAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: ShimmerList(itemCount: 6, itemHeight: 140),
+                ),
+                error: (error, _) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ErrorStateWidget(
+                    message: error.toString(),
+                    onRetry: () => ref.invalidate(educatorsProvider),
+                  ),
+                ),
+                data: (educators) {
+                  final filtered = _applyFilters(educators);
+                  if (educators.isEmpty) return _emptyWidget(isDark);
+                  if (filtered.isEmpty) return _noResultsWidget(isDark);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCountStrip(educators, filtered, isDark),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => _EducatorCard(
+                          educator: filtered[i],
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Sliver AppBar ─────────────────────────────────────────────────────────
+  SliverAppBar _buildSliverAppBar(BuildContext context, bool isDark) {
+    return SliverAppBar(
+      expandedHeight: 148,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: kPrimary,
+      surfaceTintColor: Colors.transparent,
+      leading: Padding(
+        padding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.white, size: 18),
+          ),
+        ),
+      ),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCollapsed = constraints.maxHeight <= kToolbarHeight + 24;
+
+          return FlexibleSpaceBar(
+            collapseMode: CollapseMode.parallax,
+            background: Stack(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [kPrimary, kPrimaryDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+                // one subtle circle — minimal
+                Positioned(
+                  right: -40,
+                  top: -40,
+                  child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 22,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'FACULTY PEDIA',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Educators',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Learn from India\'s finest faculty',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            title: isCollapsed
+                ? const Text(
+                    'Educators',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  )
+                : null,
+            titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Search + Filter ───────────────────────────────────────────────────────
+  Widget _buildSearchAndFilter(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Column(
+        children: [
+          // Search field
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? kSurfaceDark : kSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? kText1Dark : kText1Light,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search educators, subjects…',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? kText2Dark : kText3Light,
+                ),
+                prefixIcon:
+                    const Icon(Icons.search_rounded, color: kPrimary, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                        child: Icon(Icons.close_rounded,
+                            size: 17, color: isDark ? kText2Dark : kText3Light),
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Filter chips — blue only, no rainbow
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _filters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final f = _filters[i];
+                final active = _activeFilter == f;
+                return GestureDetector(
+                  onTap: () => setState(() => _activeFilter = f),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: active
+                          ? kPrimary
+                          : (isDark ? kSurfaceDark : kSurface),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: active
+                            ? kPrimary
+                            : (isDark
+                                ? Colors.white.withOpacity(0.08)
+                                : kDivLight),
+                        width: active ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Text(
+                      f,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: active
+                            ? Colors.white
+                            : (isDark ? kText2Dark : kText2Light),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Count strip ───────────────────────────────────────────────────────────
+  Widget _buildCountStrip(
+      List<Educator> all, List<Educator> filtered, bool isDark) {
+    final activeCount = all.where((e) => e.status == 'active').length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        children: [
+          Text(
+            '${filtered.length} educators',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isDark ? kText2Dark : kText2Light,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 4,
+            height: 4,
+            decoration: const BoxDecoration(
+              color: Color(0xFF22C55E),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$activeCount active',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF22C55E),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyWidget(bool isDark) => Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Column(children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+                color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+            child: const Icon(Icons.people_outline_rounded,
+                color: kPrimary, size: 34),
+          ),
+          const SizedBox(height: 16),
+          const Text('No Educators Found',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text('Check back later for new educators',
+              style: TextStyle(
+                  fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
+        ]),
+      );
+
+  Widget _noResultsWidget(bool isDark) => Padding(
+        padding: const EdgeInsets.only(top: 60),
+        child: Column(children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+                color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+            child:
+                const Icon(Icons.search_off_rounded, color: kPrimary, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text('No results found',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text('Try a different search or filter',
+              style: TextStyle(
+                  fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
+        ]),
+      );
+}
+
+// ── Educator Card ──────────────────────────────────────────────────────────────
+class _EducatorCard extends StatefulWidget {
+  final Educator educator;
+  final bool isDark;
+  const _EducatorCard({required this.educator, required this.isDark});
+
+  @override
+  State<_EducatorCard> createState() => _EducatorCardState();
+}
+
+class _EducatorCardState extends State<_EducatorCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  bool get _isActive => widget.educator.status == 'active';
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 110));
+    _scale = Tween<double>(begin: 1.0, end: 0.97)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.educator;
+    final isDark = widget.isDark;
+
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        context.push('/educator/${e.id}');
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) =>
+            Transform.scale(scale: _scale.value, child: child),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isDark ? kSurfaceDark : kSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // ── Top Row ────────────────────────────────────────────
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    // avatar with blue border ring if active
+                    Stack(
                       children: [
-                        Expanded(
-                          child: Text(
-                            educator.displayName,
-                            style: Theme.of(context).textTheme.titleLarge,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Container(
+                          padding: _isActive
+                              ? const EdgeInsets.all(2.5)
+                              : EdgeInsets.zero,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: _isActive
+                                ? Border.all(color: kPrimary, width: 2)
+                                : null,
+                          ),
+                          child: UserAvatar(
+                            imageUrl: e.imageUrl,
+                            name: e.displayName,
+                            size: 64,
+                            showBorder: false,
                           ),
                         ),
-                        if (educator.status == 'active')
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: AppColors.success,
-                              shape: BoxShape.circle,
+                        if (_isActive)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Container(
+                              width: 13,
+                              height: 13,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22C55E),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark ? kSurfaceDark : kSurface,
+                                  width: 2,
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.book, size: 14, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            educator.displaySubjects,
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
+
+                    const SizedBox(width: 14),
+
+                    // text column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // name + star rating
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  e.displayName,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                    color: isDark ? kText1Dark : kText1Light,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (e.rating != null) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.star_rounded,
+                                    size: 14, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  (e.rating!.average ?? 0).toStringAsFixed(1),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? kText1Dark : kText1Light,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          // subjects — simple blue text, clean & classy
+                          Text(
+                            e.displaySubjects,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: kPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (educator.bio != null && educator.bio!.isNotEmpty)
-                      Text(
-                        educator.bio!,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+
+                          // bio
+                          if (e.bio != null && e.bio!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              e.bio!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.45,
+                                color: isDark ? kText2Dark : kText2Light,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
                       ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildInfoChip(
-                          Icons.people,
-                          '${educator.followerCount} followers',
-                        ),
-                        const SizedBox(width: 12),
-                        _buildInfoChip(
-                          Icons.work,
-                          educator.displayExperience,
-                        ),
-                        const Spacer(),
-                        if (educator.rating != null)
-                          RatingWidget(
-                            rating: educator.rating!.average ?? 0,
-                            count: educator.rating!.count,
-                            size: 14,
-                          ),
-                      ],
                     ),
                   ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 14),
+
+                Divider(
+                    height: 1,
+                    color: isDark ? Colors.white.withOpacity(0.07) : kDivLight),
+
+                const SizedBox(height: 12),
+
+                // ── Stats + CTA ───────────────────────────────────────
+                Row(
+                  children: [
+                    _chip(Icons.people_rounded, '${e.followerCount} followers',
+                        isDark),
+                    const SizedBox(width: 14),
+                    _chip(Icons.workspace_premium_rounded, e.displayExperience,
+                        isDark),
+                    const Spacer(),
+                    // View Profile — blue outline style, clean
+                    GestureDetector(
+                      onTap: () => context.push('/educator/${e.id}'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: kPrimaryBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: kPrimaryMid),
+                        ),
+                        child: const Text(
+                          'View Profile',
+                          style: TextStyle(
+                            color: kPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.grey500),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.grey600,
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _chip(IconData icon, String label, bool isDark) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: isDark ? kText2Dark : kText3Light),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? kText2Dark : kText2Light)),
+        ],
+      );
 }

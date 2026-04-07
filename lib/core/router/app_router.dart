@@ -18,15 +18,24 @@ import '../../features/exams/presentation/exam_content_tile.dart';
 import '../../features/exams/presentation/course_type_screen.dart';
 import '../../features/exams/presentation/exam_educators_screen.dart';
 import '../../features/exams/presentation/exam_webinars_screen.dart';
-import '../../features/test_series/presentation/test_series_screen.dart';
-import '../../features/test_series/presentation/test_series_details_screen.dart';
+import '../../features/test_series/presentation/test_series_screen.dart'
+    as test_series_list;
+import '../../features/test_series/presentation/test_series_details_screen.dart'
+    as test_series_details;
 import '../../features/live_test/presentation/live_test_screen.dart';
 import '../../features/live_test/presentation/test_result_screen.dart';
 import '../../features/webinars/presentation/webinars_screen.dart';
 import '../../features/webinars/presentation/webinar_details_screen.dart';
+import '../../features/dashboard/student_dashboard.dart';
+import '../../features/dashboard/student_courses.dart';
+import '../../features/dashboard/test_series.dart';
+import '../../features/coursePanel/course_panel.dart';
+import '../../features/coursePanel/video_player_screen.dart';
+import '../../features/coursePanel/pdf_viewer_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
-import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/post/all_posts.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -83,26 +92,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const HomeScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dashboard',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const StudentDashboardScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dashboard/test-series',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const StudentTestSeriesScreen(),
             ),
           ),
           GoRoute(
             path: '/exams',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ExamsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const ExamsScreen(),
             ),
           ),
           GoRoute(
             path: '/educators',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: EducatorsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const EducatorsScreen(),
             ),
           ),
           GoRoute(
             path: '/profile',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ProfileScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const ProfileScreen(),
             ),
           ),
         ],
@@ -122,10 +149,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CoursesScreen(),
       ),
       GoRoute(
+        path: '/student-courses',
+        builder: (context, state) => const StudentCoursesScreen(),
+      ),
+      GoRoute(
         path: '/course/:id',
         builder: (context, state) => CourseDetailsScreen(
           courseId: state.pathParameters['id']!,
         ),
+      ),
+      GoRoute(
+        path: '/course-panel/:id',
+        builder: (context, state) {
+          final extra = state.extra is Map ? state.extra as Map : const {};
+          return CoursePanelScreen(
+            courseId: state.pathParameters['id']!,
+            title: extra['title']?.toString(),
+            imageUrl: extra['imageUrl']?.toString(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/video-player',
+        builder: (context, state) {
+          final extra = state.extra is Map ? state.extra as Map : const {};
+          final title = extra['title']?.toString() ?? 'Video';
+          final url = extra['url']?.toString() ?? '';
+          return VideoPlayerScreen(title: title, url: url);
+        },
+      ),
+      GoRoute(
+        path: '/pdf-viewer/:id',
+        builder: (context, state) {
+          final extra = state.extra is Map ? state.extra as Map : const {};
+          final title = extra['title']?.toString() ?? 'Material';
+          final url = extra['url']?.toString() ?? '';
+          return PdfViewerScreen(title: title, url: url);
+        },
       ),
 
       // Exams Detail
@@ -162,14 +222,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
+      // Posts
+      GoRoute(
+        path: '/posts',
+        builder: (context, state) {
+          final examType = state.uri.queryParameters['exam'];
+          return PostsScreen(examType: examType);
+        },
+      ),
+
       // Test Series
       GoRoute(
         path: '/test-series',
-        builder: (context, state) => const TestSeriesScreen(),
+        builder: (context, state) {
+          final examType = state.uri.queryParameters['exam'];
+          return test_series_list.TestSeriesScreen(examType: examType);
+        },
       ),
       GoRoute(
         path: '/test-series/:id',
-        builder: (context, state) => TestSeriesDetailsScreen(
+        builder: (context, state) =>
+            test_series_details.TestSeriesDetailsScreen(
           testSeriesId: state.pathParameters['id']!,
         ),
       ),
@@ -200,16 +273,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Profile
-      GoRoute(
-        path: '/edit-profile',
-        builder: (context, state) => const EditProfileScreen(),
-      ),
-
       // Settings
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+
+      // Notifications
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

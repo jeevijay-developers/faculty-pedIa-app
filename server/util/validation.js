@@ -3133,6 +3133,22 @@ export const rateTestSeriesValidation = [
   ...validateRating,
 ];
 
+export const testSeriesReviewValidation = [
+  validateObjectId("id"),
+  body("studentId")
+    .notEmpty()
+    .withMessage("Student ID is required")
+    .isMongoId()
+    .withMessage("Invalid student ID format"),
+  ...validateRating,
+  body("comment")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage("Review comment must be at least 3 characters"),
+];
+
 // ==================== Study Material Validators ====================
 
 export const validateStudyMaterialEducatorId = [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -878,33 +879,6 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
       ),
       child: Row(
         children: [
-          // fee badge
-          if (!isFree && !isEnrolled) ...[
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Course Fee',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                  ),
-                ),
-                Text(
-                  '₹${course.finalPrice.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: kPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 14),
-          ],
-
           // Enroll / Go To Course button
           Expanded(
             child: GestureDetector(
@@ -912,15 +886,7 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
                   ? null
                   : () async {
                       if (isEnrolled) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Course already enrolled.'),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            backgroundColor: const Color(0xFF1E293B),
-                          ),
-                        );
+                        context.go('/student-courses');
                         return;
                       }
                       await _startEnrollment(course, authState);
@@ -966,7 +932,11 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            isEnrolled ? 'Go to Course' : 'Enroll Now',
+                            isEnrolled
+                                ? 'Go to Course'
+                                : isFree
+                                    ? 'Enroll Now'
+                                    : 'Enroll Now  •  ₹${course.finalPrice.toInt()}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -976,35 +946,6 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
                           ),
                         ],
                       ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          // Syllabus button
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : kPrimaryBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kPrimaryMid),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.menu_book_rounded, color: kPrimary, size: 18),
-                  SizedBox(width: 6),
-                  Text(
-                    'Syllabus',
-                    style: TextStyle(
-                      color: kPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),

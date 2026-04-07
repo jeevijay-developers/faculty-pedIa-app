@@ -5,6 +5,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 // ── Blue-600 palette ──────────────────────────────────────────────────────────
 const kPrimary = Color(0xFF2563EB); // blue-600
@@ -27,16 +28,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unreadAsync = ref.watch(unreadCountProvider);
 
     return Scaffold(
       backgroundColor:
           isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: RefreshIndicator(
         color: kPrimary,
-        onRefresh: () async {},
+        onRefresh: () async {
+          ref.invalidate(unreadCountProvider);
+        },
         child: CustomScrollView(
           slivers: [
-            _buildSliverAppBar(context, isDark),
+            _buildSliverAppBar(context, isDark, unreadAsync),
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,7 +71,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ── Sliver AppBar ────────────────────────────────────────────────────────────
-  SliverAppBar _buildSliverAppBar(BuildContext context, bool isDark) {
+  SliverAppBar _buildSliverAppBar(
+    BuildContext context,
+    bool isDark,
+    AsyncValue<int> unreadAsync,
+  ) {
     return SliverAppBar(
       floating: true,
       snap: true,
@@ -80,10 +88,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Container(
             width: 38,
             height: 38,
-            decoration: BoxDecoration(
-              color: kPrimary,
-              borderRadius: BorderRadius.circular(10),
-            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
@@ -116,8 +120,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       actions: [
         _appBarIcon(
           Icons.notifications_outlined,
-          badge: true,
-          onTap: () {},
+          badge: unreadAsync.maybeWhen(
+            data: (count) => count > 0,
+            orElse: () => false,
+          ),
+          onTap: () => context.push('/notifications'),
         ),
         const SizedBox(width: 4),
         _appBarIcon(

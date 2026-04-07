@@ -20,6 +20,7 @@ import {
   bulkAddTests,
   bulkRemoveTests,
   updateTestSeriesRating,
+  addTestSeriesReview,
   getTestSeriesStatistics,
   getOverallStatistics,
   assignTestSeriesToCourse,
@@ -34,6 +35,7 @@ import {
   testSeriesTestOperationValidation,
   bulkTestSeriesTestOperationValidation,
   rateTestSeriesValidation,
+  testSeriesReviewValidation,
   validateObjectId,
   validateSlug,
   validateEducatorIdParam,
@@ -146,6 +148,9 @@ router.delete(
 
 // Update test series rating
 router.post("/:id/rating", rateTestSeriesValidation, updateTestSeriesRating);
+
+// Add or update test series review
+router.post("/:id/reviews", testSeriesReviewValidation, addTestSeriesReview);
 
 // ==================== Statistics Routes ====================
 

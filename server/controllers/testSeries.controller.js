@@ -1,6 +1,7 @@
 import { validationResult } from "express-validator";
 import TestSeries from "../models/testSeries.js";
 import Course from "../models/course.js";
+import Student from "../models/student.js";
 import mongoose from "mongoose";
 import notificationService from "../services/notification.service.js";
 
@@ -886,6 +887,99 @@ export const updateTestSeriesRating = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating rating:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Add or update a test series review
+export const addTestSeriesReview = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { studentId, rating, comment } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    if (!comment || comment.trim().length < 3) {
+      return res.status(400).json({
+        message: "Review comment must be at least 3 characters",
+      });
+    }
+
+    const testSeries = await TestSeries.findOne({ _id: id, isActive: true });
+
+    if (!testSeries) {
+      return res.status(404).json({ message: "Test series not found" });
+    }
+
+    const studentIdString = studentId.toString();
+    const isEnrolled = (testSeries.enrolledStudents || []).some(
+      (entry) => entry.toString() === studentIdString
+    );
+
+    if (!isEnrolled) {
+      return res.status(403).json({
+        message: "Only enrolled students can submit reviews",
+      });
+    }
+
+    const student = await Student.findById(studentId)
+      .select("name image")
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const existingIndex = testSeries.reviews.findIndex(
+      (review) => review.student?.toString() === studentIdString
+    );
+
+    if (existingIndex > -1) {
+      testSeries.reviews[existingIndex].rating = rating;
+      testSeries.reviews[existingIndex].comment = comment.trim();
+      testSeries.reviews[existingIndex].updatedAt = new Date();
+    } else {
+      testSeries.reviews.push({
+        student: studentId,
+        name: student.name,
+        avatar: student.image || "",
+        rating,
+        comment: comment.trim(),
+      });
+    }
+
+    const totalRatings = testSeries.reviews.length;
+    const ratingSum = testSeries.reviews.reduce(
+      (sum, entry) => sum + Number(entry.rating ?? 0),
+      0
+    );
+
+    testSeries.rating = totalRatings > 0 ? ratingSum / totalRatings : 0;
+    testSeries.ratingCount = totalRatings;
+    testSeries.updatedAt = Date.now();
+
+    await testSeries.save();
+
+    res.status(200).json({
+      message:
+        existingIndex > -1
+          ? "Review updated successfully"
+          : "Review submitted successfully",
+      data: {
+        rating: testSeries.rating,
+        ratingCount: testSeries.ratingCount,
+        reviews: testSeries.reviews,
+      },
+    });
+  } catch (error) {
+    console.error("Error adding test series review:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
