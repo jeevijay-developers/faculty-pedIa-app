@@ -101,7 +101,12 @@ class ExamEducatorsScreen extends ConsumerWidget {
               child: educatorsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(16),
-                  child: ShimmerList(itemCount: 6, itemHeight: 140),
+                  child: ShimmerList(
+                    itemCount: 6,
+                    itemHeight: 140,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  ),
                 ),
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(16),

@@ -16,63 +16,38 @@ import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/user_widgets.dart';
 
-// ─────────────────────────────────────────────
-// DESIGN TOKENS — EduVantage Material You Palette
-// ─────────────────────────────────────────────
+// ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
+const kPrimary = Color(0xFF2563EB);
+const kPrimaryDark = Color(0xFF1D4ED8);
+const kPrimaryBg = Color(0xFFEFF6FF);
+const kPrimaryMid = Color(0xFFBFDBFE);
 
-class _EduColors {
-  // Primary
-  static const primary = Color(0xFF0050D4);
-  static const onPrimary = Colors.white;
-  static const primaryContainer = Color(0xFFE7E6FF);
-  static const onPrimaryContainer = Color(0xFF00124A);
+const kSurface = Colors.white;
+const kSurfaceDark = Color(0xFF1E293B);
+const kBgLight = Color(0xFFF8FAFC);
+const kBgDark = Color(0xFF0F172A);
+const kText1Light = Color(0xFF0F172A);
+const kText2Light = Color(0xFF64748B);
+const kText3Light = Color(0xFF94A3B8);
+const kText1Dark = Colors.white;
+const kText2Dark = Color(0xFF94A3B8);
+const kDivLight = Color(0xFFF1F5F9);
 
-  // Secondary
-  static const secondary = Color(0xFF5A5D85);
-  static const secondaryContainer = Color(0xFFDEE0FF);
-  static const onSecondaryContainer = Color(0xFF171A3D);
-
-  // Tertiary
-  static const tertiary = Color(0xFF6E3BD8);
-  static const tertiaryContainer = Color(0xFFE9DDFF);
-  static const onTertiaryContainer = Color(0xFF22005D);
-
-  // Surface
-  static const surface = Color(0xFFF8F5FF);
-  static const onSurface = Color(0xFF1A1B2E);
-  static const surfaceVariant = Color(0xFFE2E1EC);
-  static const onSurfaceVariant = Color(0xFF45464F);
-  static const background = Color(0xFFFDFBFF);
-
-  // Surface containers
-  static const surfaceContainerLowest = Colors.white;
-  static const surfaceContainerLow = Color(0xFFF4F3FA);
-  static const surfaceContainer = Color(0xFFEEEEF7);
-  static const surfaceContainerHigh = Color(0xFFE8E7F1);
-  static const surfaceContainerHighest = Color(0xFFE2E1EC);
-
-  // Utility
-  static const outline = Color(0xFF767680);
-}
-
-// ─────────────────────────────────────────────
-// PROVIDERS
-// ─────────────────────────────────────────────
-
+// ── Providers ──────────────────────────────────────────────────────────────────
 final educatorDetailProvider =
     FutureProvider.family.autoDispose<Educator, String>((ref, id) async {
   final api = ApiService();
   final response = await api.get('/api/educators/$id');
   final data = response.data;
-  Map<String, dynamic> educatorData = {};
+  Map<String, dynamic> ed = {};
   if (data is Map && data['data'] is Map && data['data']['educator'] != null) {
-    educatorData = Map<String, dynamic>.from(data['data']['educator']);
+    ed = Map<String, dynamic>.from(data['data']['educator']);
   } else if (data is Map && data['educator'] != null) {
-    educatorData = Map<String, dynamic>.from(data['educator']);
+    ed = Map<String, dynamic>.from(data['educator']);
   } else if (data is Map) {
-    educatorData = Map<String, dynamic>.from(data);
+    ed = Map<String, dynamic>.from(data);
   }
-  return Educator.fromJson(educatorData);
+  return Educator.fromJson(ed);
 });
 
 final educatorCoursesProvider =
@@ -80,39 +55,29 @@ final educatorCoursesProvider =
   final api = ApiService();
   final response = await api.get('/api/courses/educator/$id');
   final data = response.data;
-  List<dynamic> coursesList = [];
+  List<dynamic> list = [];
   if (data is Map && data['data'] is Map && data['data']['courses'] != null) {
-    coursesList = data['data']['courses'] as List;
+    list = data['data']['courses'] as List;
   } else if (data is Map && data['courses'] != null) {
-    coursesList = data['courses'] as List;
+    list = data['courses'] as List;
   } else if (data is List) {
-    coursesList = data;
+    list = data;
   }
-  final courses = coursesList.map((e) => Course.fromJson(e)).toList();
-  final hasReviewsField = coursesList.any(
-    (entry) => entry is Map && entry.containsKey('reviews'),
-  );
-  if (courses.isEmpty || hasReviewsField) {
-    return courses;
-  }
+  final courses = list.map((e) => Course.fromJson(e)).toList();
+  final hasReviewsField = list.any((e) => e is Map && e.containsKey('reviews'));
+  if (courses.isEmpty || hasReviewsField) return courses;
 
-  final detailedCourses = await Future.wait(
-    courses.map((course) async {
-      final detailResponse = await api.get('/api/courses/${course.id}');
-      final detailData = detailResponse.data;
-      Map<String, dynamic> courseData = {};
-      if (detailData is Map && detailData['data'] is Map) {
-        courseData = Map<String, dynamic>.from(detailData['data']);
-      } else if (detailData is Map && detailData['course'] != null) {
-        courseData = Map<String, dynamic>.from(detailData['course']);
-      } else if (detailData is Map) {
-        courseData = Map<String, dynamic>.from(detailData);
-      }
-      return Course.fromJson(courseData);
-    }),
-  );
-
-  return detailedCourses;
+  return Future.wait(courses.map((course) async {
+    final dr = await api.get('/api/courses/${course.id}');
+    final dd = dr.data;
+    Map<String, dynamic> cd = {};
+    if (dd is Map && dd['data'] is Map)
+      cd = Map<String, dynamic>.from(dd['data']);
+    else if (dd is Map && dd['course'] != null)
+      cd = Map<String, dynamic>.from(dd['course']);
+    else if (dd is Map) cd = Map<String, dynamic>.from(dd);
+    return Course.fromJson(cd);
+  }));
 });
 
 final educatorTestSeriesProvider = FutureProvider.family
@@ -121,11 +86,9 @@ final educatorTestSeriesProvider = FutureProvider.family
   final response = await api.get('/api/test-series/educator/$id');
   final data = response.data;
   List<dynamic> list = [];
-  if (data is Map && data['testSeries'] != null) {
+  if (data is Map && data['testSeries'] != null)
     list = data['testSeries'] as List;
-  } else if (data is List) {
-    list = data;
-  }
+  else if (data is List) list = data;
   return list.map((e) => TestSeries.fromJson(e)).toList();
 });
 
@@ -135,283 +98,294 @@ final educatorWebinarsProvider =
   final response = await api.get('/api/webinars/educator/$id');
   final data = response.data;
   List<dynamic> list = [];
-  if (data is Map && data['data'] is Map && data['data']['webinars'] != null) {
+  if (data is Map && data['data'] is Map && data['data']['webinars'] != null)
     list = data['data']['webinars'] as List;
-  } else if (data is Map && data['webinars'] != null) {
+  else if (data is Map && data['webinars'] != null)
     list = data['webinars'] as List;
-  } else if (data is List) {
-    list = data;
-  }
+  else if (data is List) list = data;
   return list;
 });
 
-// ─────────────────────────────────────────────
-// MAIN SCREEN
-// ─────────────────────────────────────────────
-
+// ── Main screen ────────────────────────────────────────────────────────────────
 class EducatorProfileScreen extends ConsumerWidget {
   final String educatorId;
   const EducatorProfileScreen({super.key, required this.educatorId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final educatorAsync = ref.watch(educatorDetailProvider(educatorId));
+    final async = ref.watch(educatorDetailProvider(educatorId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return educatorAsync.when(
-      loading: () => const Scaffold(
-        backgroundColor: _EduColors.background,
-        body: Center(
-          child: CircularProgressIndicator(color: _EduColors.primary),
-        ),
+    return async.when(
+      loading: () => Scaffold(
+        backgroundColor: isDark ? kBgDark : kBgLight,
+        body: const Center(child: CircularProgressIndicator(color: kPrimary)),
       ),
-      error: (error, stack) => Scaffold(
-        backgroundColor: _EduColors.background,
+      error: (e, _) => Scaffold(
+        backgroundColor: isDark ? kBgDark : kBgLight,
         appBar: AppBar(
-          backgroundColor: _EduColors.surface,
+          backgroundColor: isDark ? kBgDark : kBgLight,
           elevation: 0,
-          leading: IconButton(
-            icon:
-                const Icon(Icons.arrow_back_rounded, color: _EduColors.primary),
-            onPressed: () => context.pop(),
-          ),
+          leading: _backBtn(context, isDark),
         ),
         body: _ErrorView(
-          message: error.toString(),
+          message: e.toString(),
           onRetry: () => ref.invalidate(educatorDetailProvider(educatorId)),
+          isDark: isDark,
         ),
       ),
-      data: (educator) => _EducatorProfileBody(
+      data: (educator) => _ProfileBody(
         educator: educator,
         educatorId: educatorId,
       ),
     );
   }
+
+  Widget _backBtn(BuildContext context, bool isDark) => Padding(
+        padding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () => context.pop(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? kSurfaceDark : kPrimaryBg,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: kPrimary, size: 18),
+          ),
+        ),
+      );
 }
 
-// ─────────────────────────────────────────────
-// PROFILE BODY
-// ─────────────────────────────────────────────
-
-class _EducatorProfileBody extends ConsumerStatefulWidget {
+// ── Profile body ───────────────────────────────────────────────────────────────
+class _ProfileBody extends ConsumerStatefulWidget {
   final Educator educator;
   final String educatorId;
 
-  const _EducatorProfileBody({
-    required this.educator,
-    required this.educatorId,
-  });
+  const _ProfileBody({required this.educator, required this.educatorId});
 
   @override
-  ConsumerState<_EducatorProfileBody> createState() =>
-      _EducatorProfileBodyState();
+  ConsumerState<_ProfileBody> createState() => _ProfileBodyState();
 }
 
-class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
+class _ProfileBodyState extends ConsumerState<_ProfileBody>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late TabController _tabCtrl;
   bool _isFollowing = false;
   bool _isFollowingInitialized = false;
   bool _bioExpanded = false;
   int _myRating = 0;
   int _followerCount = 0;
-  VideoPlayerController? _videoController;
-  WebViewController? _vimeoController;
+  VideoPlayerController? _videoCtrl;
+  WebViewController? _vimeoCtrl;
   bool _isVideoReady = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _followerCount = widget.educator.followerCount;
-    _initIntroVideo(widget.educator);
+    _initVideo(widget.educator);
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
-    _tabController.dispose();
+    _videoCtrl?.dispose();
+    _tabCtrl.dispose();
     super.dispose();
   }
 
   @override
-  void didUpdateWidget(covariant _EducatorProfileBody oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.educatorId != widget.educatorId) {
+  void didUpdateWidget(covariant _ProfileBody old) {
+    super.didUpdateWidget(old);
+    if (old.educatorId != widget.educatorId) {
       _isFollowingInitialized = false;
       _isFollowing = false;
     }
-    if (oldWidget.educator.introVideoLink != widget.educator.introVideoLink) {
-      _initIntroVideo(widget.educator);
+    if (old.educator.introVideoLink != widget.educator.introVideoLink) {
+      _initVideo(widget.educator);
     }
-    if (oldWidget.educator.followerCount != widget.educator.followerCount) {
+    if (old.educator.followerCount != widget.educator.followerCount) {
       _followerCount = widget.educator.followerCount;
     }
   }
 
-  bool? _computeIsFollowing(AuthState authState) {
-    final studentId = authState.student?.id;
-    if (studentId == null || studentId.isEmpty) return null;
-    final fromEducator = widget.educator.followerIds.contains(studentId);
-    final fromStudent =
-        authState.student?.followingEducators.contains(widget.educator.id) ??
-            false;
-    return fromEducator || fromStudent;
+  bool? _computeFollowing(AuthState auth) {
+    final sid = auth.student?.id;
+    if (sid == null || sid.isEmpty) return null;
+    return widget.educator.followerIds.contains(sid) ||
+        (auth.student?.followingEducators.contains(widget.educator.id) ??
+            false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final computedIsFollowing = _computeIsFollowing(authState) ?? false;
-    final isFollowing =
-        _isFollowingInitialized ? _isFollowing : computedIsFollowing;
-
-    final educator = widget.educator;
-    final educatorName =
-        educator.displayName.isNotEmpty ? educator.displayName : 'Educator';
-    final hasPayPerHour = (educator.payPerHourFee ?? 0) > 0;
-    final subjectChips = _buildSubjectChips(educator);
+    final auth = ref.watch(authStateProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isFollowing = _isFollowingInitialized
+        ? _isFollowing
+        : (_computeFollowing(auth) ?? false);
+    final e = widget.educator;
+    final hasPayPerHour = (e.payPerHourFee ?? 0) > 0;
     final coursesAsync = ref.watch(educatorCoursesProvider(widget.educatorId));
-    final testSeriesAsync =
-        ref.watch(educatorTestSeriesProvider(widget.educatorId));
+    final tsAsync = ref.watch(educatorTestSeriesProvider(widget.educatorId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: _EduColors.background,
+        backgroundColor: isDark ? kBgDark : kBgLight,
         body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            // ── Frosted Top App Bar ──
+          headerSliverBuilder: (_, __) => [
+            // AppBar
             SliverAppBar(
               pinned: true,
-              floating: false,
               elevation: 0,
-              backgroundColor: _EduColors.surface,
+              backgroundColor: isDark ? kBgDark : kSurface,
               surfaceTintColor: Colors.transparent,
-              systemOverlayStyle: SystemUiOverlayStyle.dark,
               leading: Padding(
                 padding: const EdgeInsets.all(8),
-                child: _IconButton(
-                  icon: Icons.arrow_back_rounded,
+                child: GestureDetector(
                   onTap: () => context.pop(),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? kSurfaceDark : kPrimaryBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: kPrimary, size: 18),
+                  ),
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Educator Profile',
                 style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: _EduColors.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: isDark ? kText1Dark : kText1Light,
                 ),
               ),
-              centerTitle: false,
               actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: _IconButton(
-                    icon: Icons.share_rounded,
-                    onTap: _shareProfile,
+                GestureDetector(
+                  onTap: () {},
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? kSurfaceDark : kPrimaryBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.share_rounded,
+                        color: kPrimary, size: 18),
                   ),
                 ),
               ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(0.5),
+                child:
+                    Divider(height: 0.5, color: Colors.grey.withOpacity(0.12)),
+              ),
             ),
 
-            // ── Profile Header Card ──
+            // Header card
             SliverToBoxAdapter(
               child: _ProfileHeaderCard(
-                educator: educator,
+                educator: e,
                 isFollowing: isFollowing,
+                isDark: isDark,
                 onFollowTap: _toggleFollow,
               ),
             ),
 
-            // ── Bento Stats Grid ──
+            // Stats grid
             SliverToBoxAdapter(
-              child: _BentoStatsGrid(
-                educator: educator,
+              child: _StatsGrid(
+                educator: e,
                 educatorId: widget.educatorId,
                 followerCount: _followerCount,
+                isDark: isDark,
               ),
             ),
 
-            // ── Book 1:1 Session ──
+            // Book 1:1 session
             if (hasPayPerHour)
               SliverToBoxAdapter(
-                child: _BookSessionCard(educator: educator),
+                child: _BookSessionCard(educator: e, isDark: isDark),
               ),
 
-            // ── Intro Video ──
+            // Intro video
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                child: _buildIntroVideo(educator),
+                child: _buildVideo(e, isDark),
               ),
             ),
 
-            // ── About Section ──
+            // About
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                 child: _AboutSection(
-                  bio: educator.bio ?? '',
-                  subjects: subjectChips,
-                  experience: educator.displayExperience,
+                  bio: e.bio ?? '',
+                  subjects: _subjectChips(e),
+                  experience: e.displayExperience,
                   expanded: _bioExpanded,
+                  isDark: isDark,
                   onToggle: () => setState(() => _bioExpanded = !_bioExpanded),
                 ),
               ),
             ),
 
-            // ── Background (Experience + Qualifications) ──
+            // Background
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                 child: _BackgroundSection(
-                  qualifications: educator.qualifications,
-                  workExperience: educator.workExperience,
+                  qualifications: e.qualifications,
+                  workExperience: e.workExperience,
+                  isDark: isDark,
                 ),
               ),
             ),
 
-            // ── Rating + Reviews ──
+            // Ratings
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                child: _RatingAndReviewsSection(
-                  educator: educator,
+                child: _RatingsSection(
+                  educator: e,
                   coursesAsync: coursesAsync,
-                  testSeriesAsync: testSeriesAsync,
+                  tsAsync: tsAsync,
                   myRating: _myRating,
+                  isDark: isDark,
                   onRate: _submitRating,
                 ),
               ),
             ),
 
-            // ── Tab Bar ──
+            // Tab bar
             SliverPersistentHeader(
               pinned: true,
-              delegate: _StickyTabBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  labelColor: _EduColors.primary,
-                  unselectedLabelColor: _EduColors.onSurfaceVariant,
-                  indicatorColor: _EduColors.primary,
-                  indicatorWeight: 3,
+              delegate: _StickyTabDelegate(
+                isDark: isDark,
+                tabBar: TabBar(
+                  controller: _tabCtrl,
+                  labelColor: kPrimary,
+                  unselectedLabelColor: isDark ? kText2Dark : kText2Light,
+                  indicatorColor: kPrimary,
+                  indicatorWeight: 2.5,
                   indicatorSize: TabBarIndicatorSize.label,
-                  dividerColor: _EduColors.surfaceContainerHigh,
+                  dividerColor:
+                      isDark ? Colors.white.withOpacity(0.08) : kDivLight,
                   labelStyle: const TextStyle(
-                    fontFamily: 'Manrope',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    letterSpacing: 0.1,
-                  ),
+                      fontSize: 13, fontWeight: FontWeight.w800),
                   unselectedLabelStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                      fontSize: 13, fontWeight: FontWeight.w500),
                   tabs: const [
                     Tab(text: 'Courses'),
                     Tab(text: 'Webinars'),
@@ -422,14 +396,20 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
             ),
           ],
           body: TabBarView(
-            controller: _tabController,
+            controller: _tabCtrl,
             children: [
               _CoursesTab(
-                  educatorId: widget.educatorId, educatorName: educatorName),
+                  educatorId: widget.educatorId,
+                  educatorName: e.displayName,
+                  isDark: _isDark()),
               _WebinarsTab(
-                  educatorId: widget.educatorId, educatorName: educatorName),
+                  educatorId: widget.educatorId,
+                  educatorName: e.displayName,
+                  isDark: _isDark()),
               _TestSeriesTab(
-                  educatorId: widget.educatorId, educatorName: educatorName),
+                  educatorId: widget.educatorId,
+                  educatorName: e.displayName,
+                  isDark: _isDark()),
             ],
           ),
         ),
@@ -437,293 +417,142 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
     );
   }
 
-  void _shareProfile() {
-    // Share educator profile link
-  }
+  bool _isDark() => Theme.of(context).brightness == Brightness.dark;
 
-  Future<void> _toggleFollow() async {
-    final authState = ref.read(authStateProvider);
-    final studentId = authState.student?.id;
-    if (studentId == null || studentId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in as a student to follow.')),
-      );
-      return;
-    }
-
-    final api = ApiService();
-    final wasFollowing = _isFollowingInitialized
-        ? _isFollowing
-        : _computeIsFollowing(authState) ?? false;
-    final previousCount = _followerCount;
-    if (mounted) {
-      setState(() {
-        _isFollowingInitialized = true;
-        _isFollowing = !wasFollowing;
-        _followerCount = _clampFollowerCount(
-          wasFollowing ? previousCount - 1 : previousCount + 1,
-        );
-      });
-    }
-    try {
-      Response response;
-      if (wasFollowing) {
-        response = await api.delete(
-          '/api/students/$studentId/unfollow',
-          data: {'educatorId': widget.educatorId},
-        );
-      } else {
-        response = await api.post(
-          '/api/students/$studentId/follow',
-          data: {'educatorId': widget.educatorId},
-        );
-      }
-
-      final latestCount = _extractFollowerCount(response.data);
-      if (latestCount != null && mounted) {
-        setState(() {
-          _followerCount = latestCount;
-        });
-      }
-    } catch (e) {
-      if (e is DioException) {
-        final message = _extractErrorMessage(e.response?.data);
-        if (wasFollowing && message.contains('not following')) {
-          if (mounted) {
-            setState(() {
-              _isFollowing = false;
-              _followerCount = previousCount;
-            });
-          }
-          return;
-        }
-        if (!wasFollowing && message.contains('already following')) {
-          if (mounted) {
-            setState(() {
-              _isFollowing = true;
-              _followerCount = previousCount;
-            });
-          }
-          return;
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _isFollowing = wasFollowing;
-          _followerCount = previousCount;
-        });
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update follow status: $e')),
-      );
-    }
-  }
-
-  int _clampFollowerCount(int value) {
-    if (value < 0) return 0;
-    return value;
-  }
-
-  int? _extractFollowerCount(dynamic data) {
-    if (data is Map && data['data'] is Map) {
-      final count = data['data']['followerCount'];
-      if (count is int) return count;
-      if (count is num) return count.toInt();
-    }
-    return null;
-  }
-
-  String _extractErrorMessage(dynamic data) {
-    if (data is Map) {
-      final message = data['message'];
-      if (message is String) return message.toLowerCase();
-    }
-    return '';
-  }
-
-  Future<void> _submitRating(int rating) async {
-    final authState = ref.read(authStateProvider);
-    final studentId = authState.student?.id;
-    if (studentId == null || studentId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in as a student to rate.')),
-      );
-      return;
-    }
-
-    final api = ApiService();
-    try {
-      await api.post(
-        '/api/educators/${widget.educatorId}/rating',
-        data: {'studentId': studentId, 'rating': rating},
-      );
-
-      if (mounted) {
-        setState(() {
-          _myRating = rating;
-        });
-      }
-    } catch (e) {
-      if (e is DioException) {
-        final statusCode = e.response?.statusCode;
-        if (statusCode == 403) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('You can not rate without enrolled in any Activity'),
-            ),
-          );
-          return;
-        }
-        final data = e.response?.data;
-        final message = data is Map ? data['message']?.toString() : null;
-        if (message != null && message.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
-          return;
-        }
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit rating: $e')),
-      );
-    }
-  }
-
-  Future<void> _initIntroVideo(Educator educator) async {
-    final introUrl = _resolveUrl(educator.introVideoLink ?? '');
-    if (introUrl.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _isVideoReady = false;
-          _vimeoController = null;
-        });
-      }
-      return;
-    }
-
-    if (_isVimeoUrl(introUrl)) {
-      _initVimeoController(_resolveVimeoEmbedUrl(introUrl));
-      if (mounted) {
-        setState(() {
-          _isVideoReady = false;
-        });
-      }
-      return;
-    }
-
-    if (_videoController != null && _videoController!.dataSource == introUrl) {
-      return;
-    }
-
-    await _videoController?.dispose();
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(introUrl));
-    try {
-      await _videoController!.initialize();
-      if (mounted) {
-        setState(() {
-          _isVideoReady = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isVideoReady = false;
-        });
-      }
-    }
-  }
-
-  void _initVimeoController(String embedUrl) {
-    if (embedUrl.isEmpty) return;
-    _vimeoController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..loadRequest(Uri.parse(embedUrl));
-  }
-
-  Widget _buildIntroVideo(Educator educator) {
-    final resolvedVideoUrl = _resolveUrl(educator.introVideoLink ?? '');
-
-    if (resolvedVideoUrl.isEmpty) {
+  // ── Video ──────────────────────────────────────────────────────────────────
+  Widget _buildVideo(Educator e, bool isDark) {
+    final url = _resolveUrl(e.introVideoLink ?? '');
+    if (url.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _EduColors.surfaceContainerLowest,
+          color: isDark ? kSurfaceDark : kSurface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
         ),
         child: Row(
-          children: const [
-            Icon(Icons.play_circle_outline, color: _EduColors.primary),
-            SizedBox(width: 12),
+          children: [
+            const Icon(Icons.play_circle_outline_rounded, color: kPrimary),
+            const SizedBox(width: 12),
             Expanded(
-              child: Text('Intro video not available for this educator.'),
+              child: Text('Intro video not available.',
+                  style: TextStyle(
+                      fontSize: 13, color: isDark ? kText2Dark : kText2Light)),
             ),
           ],
         ),
       );
     }
 
-    final vimeoEmbedUrl = _resolveVimeoEmbedUrl(resolvedVideoUrl);
-    if (vimeoEmbedUrl.isNotEmpty && _vimeoController != null) {
+    final vimeoUrl = _resolveVimeoUrl(url);
+    if (vimeoUrl.isNotEmpty && _vimeoCtrl != null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: SizedBox(
-          height: 200,
-          width: double.infinity,
-          child: WebViewWidget(controller: _vimeoController!),
-        ),
+            height: 210,
+            width: double.infinity,
+            child: WebViewWidget(controller: _vimeoCtrl!)),
       );
     }
 
-    final controller = _videoController;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox(
-            height: 200,
+            height: 210,
             width: double.infinity,
-            child: _isVideoReady && controller != null
+            child: _isVideoReady && _videoCtrl != null
                 ? FittedBox(
                     fit: BoxFit.cover,
                     clipBehavior: Clip.hardEdge,
                     child: SizedBox(
-                      width: controller.value.size.width,
-                      height: controller.value.size.height,
-                      child: VideoPlayer(controller),
+                      width: _videoCtrl!.value.size.width,
+                      height: _videoCtrl!.value.size.height,
+                      child: VideoPlayer(_videoCtrl!),
                     ),
                   )
-                : _videoFallback(),
+                : Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [kPrimary, kPrimaryDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.videocam_rounded,
+                          color: Colors.white24, size: 56),
+                    ),
+                  ),
           ),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.black38,
-              borderRadius: BorderRadius.circular(16),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+              ),
             ),
           ),
-          IconButton(
-            onPressed: () {
-              if (controller == null) return;
+          GestureDetector(
+            onTap: () {
+              if (_videoCtrl == null) return;
               setState(() {
-                if (controller.value.isPlaying) {
-                  controller.pause();
-                } else {
-                  controller.play();
-                }
+                _videoCtrl!.value.isPlaying
+                    ? _videoCtrl!.pause()
+                    : _videoCtrl!.play();
               });
             },
-            icon: CircleAvatar(
-              radius: 28,
-              backgroundColor: _EduColors.primary,
+            child: Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: kPrimary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: kPrimary.withOpacity(0.4),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4)),
+                ],
+              ),
               child: Icon(
-                controller != null && controller.value.isPlaying
-                    ? Icons.pause
-                    : Icons.play_arrow,
+                _videoCtrl != null && _videoCtrl!.value.isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
                 color: Colors.white,
+                size: 28,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.play_circle_rounded,
+                      color: Colors.white, size: 12),
+                  SizedBox(width: 4),
+                  Text('Intro Video',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ],
               ),
             ),
           ),
@@ -732,485 +561,239 @@ class _EducatorProfileBodyState extends ConsumerState<_EducatorProfileBody>
     );
   }
 
-  Widget _videoFallback() {
-    return Container(
-      height: 200,
-      width: double.infinity,
-      color: _EduColors.surfaceContainerHigh,
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.play_circle_fill,
-        color: _EduColors.primary,
-        size: 56,
-      ),
-    );
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  List<String> _subjectChips(Educator e) {
+    final chips = <String>[
+      ...e.specialization.map(_titleCase),
+      ...e.subject.map(_titleCase),
+    ];
+    return chips.where((v) => v.isNotEmpty).toSet().toList();
   }
+
+  String _titleCase(String v) => v
+      .replaceAll('-', ' ')
+      .split(' ')
+      .where((p) => p.isNotEmpty)
+      .map((p) => '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}')
+      .join(' ')
+      .trim();
 
   String _resolveUrl(String url) {
     if (url.isEmpty) return '';
     final uri = Uri.tryParse(url);
     if (uri == null) return '';
     if (uri.hasScheme) return url;
-    if (url.startsWith('/')) {
-      return '${AppConfig.baseUrl}$url';
-    }
-    return '${AppConfig.baseUrl}/$url';
+    return url.startsWith('/')
+        ? '${AppConfig.baseUrl}$url'
+        : '${AppConfig.baseUrl}/$url';
   }
 
-  bool _isVimeoUrl(String url) {
-    return url.contains('vimeo.com') || url.contains('player.vimeo.com');
-  }
+  bool _isVimeo(String url) =>
+      url.contains('vimeo.com') || url.contains('player.vimeo.com');
 
-  String _resolveVimeoEmbedUrl(String url) {
+  String _resolveVimeoUrl(String url) {
     final resolved = _resolveUrl(url);
     if (resolved.contains('player.vimeo.com')) return resolved;
-
     final match = RegExp(r'(\d{6,})').firstMatch(resolved);
     final videoId = match?.group(1);
     if (videoId == null || videoId.isEmpty) return '';
-
     return 'https://player.vimeo.com/video/$videoId?playsinline=1&autoplay=0';
   }
 
-  List<String> _buildSubjectChips(Educator educator) {
-    final chips = <String>[];
-    chips.addAll(educator.specialization.map(_titleCaseValue));
-    chips.addAll(educator.subject.map(_titleCaseValue));
-    return chips.where((value) => value.isNotEmpty).toSet().toList();
-  }
-
-  String _titleCaseValue(String value) {
-    return value
-        .replaceAll('-', ' ')
-        .split(' ')
-        .where((part) => part.isNotEmpty)
-        .map((part) =>
-            '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
-        .join(' ')
-        .trim();
-  }
-}
-
-class _RatingAndReviewsSection extends StatelessWidget {
-  final Educator educator;
-  final AsyncValue<List<Course>> coursesAsync;
-  final AsyncValue<List<TestSeries>> testSeriesAsync;
-  final int myRating;
-  final ValueChanged<int> onRate;
-
-  const _RatingAndReviewsSection({
-    required this.educator,
-    required this.coursesAsync,
-    required this.testSeriesAsync,
-    required this.myRating,
-    required this.onRate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final average = educator.rating?.average ?? 0;
-    final count = educator.rating?.count ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Ratings & Reviews',
-              style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: _EduColors.onSurface,
-              ),
-            ),
-            const Spacer(),
-            _RatingSummary(average: average, count: count),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _RatingInputRow(myRating: myRating, onRate: onRate),
-        const SizedBox(height: 16),
-        _buildReviews(),
-      ],
-    );
-  }
-
-  Widget _buildReviews() {
-    return coursesAsync.when(
-      loading: () => const _ReviewLoadingPlaceholder(),
-      error: (e, _) => _ReviewEmptyState(
-        message: 'Failed to load reviews',
-        subtitle: e.toString(),
-      ),
-      data: (courses) {
-        return testSeriesAsync.when(
-          loading: () => const _ReviewLoadingPlaceholder(),
-          error: (e, _) => _ReviewEmptyState(
-            message: 'Failed to load reviews',
-            subtitle: e.toString(),
-          ),
-          data: (series) {
-            final reviews = <_AggregatedReview>[
-              ..._aggregateCourseReviews(courses),
-              ..._aggregateTestSeriesReviews(series),
-            ];
-
-            if (reviews.isEmpty) {
-              return const _ReviewEmptyState(
-                message: 'No reviews yet',
-                subtitle:
-                    'Reviews will appear after students rate courses or test series.',
-              );
-            }
-
-            reviews.sort(
-              (a, b) => (b.updatedAt ?? DateTime(0)).compareTo(
-                a.updatedAt ?? DateTime(0),
-              ),
-            );
-
-            final visible = reviews.take(4).toList();
-            return Column(
-              children: visible.map((review) => _ReviewCard(review)).toList(),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  List<_AggregatedReview> _aggregateCourseReviews(List<Course> courses) {
-    final aggregated = <_AggregatedReview>[];
-    for (final course in courses) {
-      for (final review in course.reviews) {
-        if ((review.comment ?? '').trim().isEmpty) continue;
-        aggregated.add(
-          _AggregatedReview(
-            courseTitle: course.title,
-            name: review.name ?? 'Student',
-            avatar: review.avatar,
-            rating: review.rating ?? 0,
-            comment: review.comment ?? '',
-            updatedAt: review.updatedAt ?? review.createdAt,
-          ),
-        );
-      }
+  Future<void> _initVideo(Educator e) async {
+    final url = _resolveUrl(e.introVideoLink ?? '');
+    if (url.isEmpty) {
+      if (mounted)
+        setState(() {
+          _isVideoReady = false;
+          _vimeoCtrl = null;
+        });
+      return;
     }
-
-    aggregated.sort(
-      (a, b) => (b.updatedAt ?? DateTime(0)).compareTo(
-        a.updatedAt ?? DateTime(0),
-      ),
-    );
-    return aggregated;
-  }
-
-  List<_AggregatedReview> _aggregateTestSeriesReviews(
-      List<TestSeries> seriesList) {
-    final aggregated = <_AggregatedReview>[];
-    for (final series in seriesList) {
-      for (final review in series.reviews) {
-        if ((review.comment ?? '').trim().isEmpty) continue;
-        aggregated.add(
-          _AggregatedReview(
-            courseTitle: series.title,
-            name: review.name ?? 'Student',
-            avatar: review.avatar,
-            rating: review.rating ?? 0,
-            comment: review.comment ?? '',
-            updatedAt: review.updatedAt ?? review.createdAt,
-          ),
-        );
+    if (_isVimeo(url)) {
+      final embed = _resolveVimeoUrl(url);
+      if (embed.isNotEmpty) {
+        _vimeoCtrl = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(const Color(0x00000000))
+          ..loadRequest(Uri.parse(embed));
       }
+      if (mounted) setState(() => _isVideoReady = false);
+      return;
     }
-    return aggregated;
+    if (_videoCtrl != null && _videoCtrl!.dataSource == url) return;
+    await _videoCtrl?.dispose();
+    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(url));
+    try {
+      await _videoCtrl!.initialize();
+      if (mounted) setState(() => _isVideoReady = true);
+    } catch (_) {
+      if (mounted) setState(() => _isVideoReady = false);
+    }
+  }
+
+  // ── Follow ─────────────────────────────────────────────────────────────────
+  Future<void> _toggleFollow() async {
+    final auth = ref.read(authStateProvider);
+    final sid = auth.student?.id;
+    if (sid == null || sid.isEmpty) {
+      _snack('Please log in as a student to follow.');
+      return;
+    }
+    final api = ApiService();
+    final wasFollowing = _isFollowingInitialized
+        ? _isFollowing
+        : (_computeFollowing(auth) ?? false);
+    final prevCount = _followerCount;
+
+    setState(() {
+      _isFollowingInitialized = true;
+      _isFollowing = !wasFollowing;
+      _followerCount = (_followerCount + (wasFollowing ? -1 : 1))
+          .clamp(0, double.maxFinite.toInt());
+    });
+
+    try {
+      Response resp;
+      if (wasFollowing) {
+        resp = await api.delete('/api/students/$sid/unfollow',
+            data: {'educatorId': widget.educatorId});
+      } else {
+        resp = await api.post('/api/students/$sid/follow',
+            data: {'educatorId': widget.educatorId});
+      }
+      final latestCount = _parseFollowerCount(resp.data);
+      if (latestCount != null && mounted) {
+        setState(() => _followerCount = latestCount);
+      }
+    } catch (e) {
+      if (e is DioException) {
+        final msg = _parseErrorMsg(e.response?.data);
+        if (wasFollowing && msg.contains('not following')) {
+          if (mounted)
+            setState(() {
+              _isFollowing = false;
+              _followerCount = prevCount;
+            });
+          return;
+        }
+        if (!wasFollowing && msg.contains('already following')) {
+          if (mounted)
+            setState(() {
+              _isFollowing = true;
+              _followerCount = prevCount;
+            });
+          return;
+        }
+      }
+      if (mounted)
+        setState(() {
+          _isFollowing = wasFollowing;
+          _followerCount = prevCount;
+        });
+      _snack('Failed to update follow status.');
+    }
+  }
+
+  int? _parseFollowerCount(dynamic data) {
+    if (data is Map && data['data'] is Map) {
+      final c = data['data']['followerCount'];
+      if (c is int) return c;
+      if (c is num) return c.toInt();
+    }
+    return null;
+  }
+
+  String _parseErrorMsg(dynamic data) {
+    if (data is Map) {
+      final m = data['message'];
+      if (m is String) return m.toLowerCase();
+    }
+    return '';
+  }
+
+  // ── Rating ─────────────────────────────────────────────────────────────────
+  Future<void> _submitRating(int rating) async {
+    final auth = ref.read(authStateProvider);
+    final sid = auth.student?.id;
+    if (sid == null || sid.isEmpty) {
+      _snack('Please log in as a student to rate.');
+      return;
+    }
+    try {
+      await ApiService().post(
+        '/api/educators/${widget.educatorId}/rating',
+        data: {'studentId': sid, 'rating': rating},
+      );
+      if (mounted) setState(() => _myRating = rating);
+    } catch (e) {
+      if (e is DioException) {
+        if (e.response?.statusCode == 403) {
+          _snack('You must be enrolled in an activity to rate.');
+          return;
+        }
+        final d = e.response?.data;
+        final m = d is Map ? d['message']?.toString() : null;
+        if (m != null && m.isNotEmpty) {
+          _snack(m);
+          return;
+        }
+      }
+      _snack('Failed to submit rating.');
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: const Color(0xFF1E293B),
+    ));
   }
 }
 
-class _RatingSummary extends StatelessWidget {
-  final double average;
-  final int count;
-
-  const _RatingSummary({required this.average, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.star_rounded, color: _EduColors.tertiary, size: 18),
-        const SizedBox(width: 4),
-        Text(
-          average.toStringAsFixed(1),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: _EduColors.onSurface,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '($count)',
-          style: const TextStyle(
-            fontSize: 12,
-            color: _EduColors.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RatingInputRow extends StatelessWidget {
-  final int myRating;
-  final ValueChanged<int> onRate;
-
-  const _RatingInputRow({required this.myRating, required this.onRate});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Text(
-          'Your Rating',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: _EduColors.onSurface,
-          ),
-        ),
-        const SizedBox(width: 12),
-        ...List.generate(5, (index) {
-          final value = index + 1;
-          final filled = value <= myRating;
-          return IconButton(
-            onPressed: () => onRate(value),
-            icon: Icon(
-              filled ? Icons.star_rounded : Icons.star_border_rounded,
-              color: filled ? _EduColors.tertiary : _EduColors.onSurfaceVariant,
-            ),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-          );
-        }),
-      ],
-    );
-  }
-}
-
-class _ReviewLoadingPlaceholder extends StatelessWidget {
-  const _ReviewLoadingPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: const [
-        ShimmerCard(height: 84),
-        SizedBox(height: 12),
-        ShimmerCard(height: 84),
-      ],
-    );
-  }
-}
-
-class _ReviewEmptyState extends StatelessWidget {
-  final String message;
-  final String subtitle;
-
-  const _ReviewEmptyState({required this.message, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            message,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: _EduColors.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 12,
-              color: _EduColors.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AggregatedReview {
-  final String courseTitle;
-  final String name;
-  final String? avatar;
-  final double rating;
-  final String comment;
-  final DateTime? updatedAt;
-
-  _AggregatedReview({
-    required this.courseTitle,
-    required this.name,
-    required this.avatar,
-    required this.rating,
-    required this.comment,
-    required this.updatedAt,
-  });
-}
-
-class _ReviewCard extends StatelessWidget {
-  final _AggregatedReview review;
-
-  const _ReviewCard(this.review);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: review.avatar != null && review.avatar!.isNotEmpty
-                ? NetworkImage(review.avatar!)
-                : null,
-            backgroundColor: _EduColors.surfaceContainerHigh,
-            child: review.avatar == null || review.avatar!.isEmpty
-                ? Text(
-                    review.name.isNotEmpty
-                        ? review.name.substring(0, 1).toUpperCase()
-                        : 'S',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: _EduColors.onSurface,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        review.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: _EduColors.onSurface,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 14,
-                      color: _EduColors.tertiary,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      review.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _EduColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  review.courseTitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: _EduColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  review.comment,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _EduColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// PROFILE HEADER CARD
-// ─────────────────────────────────────────────
-
+// ── Profile header card ────────────────────────────────────────────────────────
 class _ProfileHeaderCard extends StatelessWidget {
   final Educator educator;
   final bool isFollowing;
+  final bool isDark;
   final VoidCallback onFollowTap;
 
   const _ProfileHeaderCard({
     required this.educator,
     required this.isFollowing,
+    required this.isDark,
     required this.onFollowTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final displayName =
+    final name =
         educator.displayName.isNotEmpty ? educator.displayName : 'Educator';
-    final handle = displayName.isNotEmpty
-        ? '@${displayName.toLowerCase().replaceAll(' ', '_')}'
-        : '';
+    final handle = '@${name.toLowerCase().replaceAll(' ', '_')}';
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? kSurfaceDark : kSurface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Avatar with rating badge
+          // Avatar + rating badge
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -1218,34 +801,29 @@ class _ProfileHeaderCard extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _EduColors.surfaceContainerHigh,
-                    width: 3,
-                  ),
+                  border: Border.all(color: kPrimary, width: 2),
                 ),
                 child: UserAvatar(
                   imageUrl: educator.imageUrl,
                   name: educator.displayName,
-                  size: 88,
+                  size: 84,
                   showBorder: false,
                 ),
               ),
-              // Rating badge
               Positioned(
                 bottom: 0,
-                right: -2,
+                right: -4,
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _EduColors.primary,
+                    color: kPrimary,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: _EduColors.primary.withOpacity(0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
+                          color: kPrimary.withOpacity(0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2)),
                     ],
                   ),
                   child: Row(
@@ -1253,7 +831,7 @@ class _ProfileHeaderCard extends StatelessWidget {
                     children: [
                       const Icon(Icons.star_rounded,
                           color: Colors.white, size: 11),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 3),
                       Text(
                         educator.rating?.average?.toStringAsFixed(1) ?? '0.0',
                         style: const TextStyle(
@@ -1268,115 +846,93 @@ class _ProfileHeaderCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 14),
 
-          // Name
           Text(
-            displayName,
-            style: const TextStyle(
-              fontFamily: 'Manrope',
+            name,
+            style: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: _EduColors.onSurface,
-              letterSpacing: -0.3,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+              color: isDark ? kText1Dark : kText1Light,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-
-          // Handle
-          if (handle.isNotEmpty)
-            Text(
-              handle,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: _EduColors.onSurfaceVariant,
-              ),
+          Text(
+            handle,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? kText2Dark : kText3Light,
             ),
+          ),
+
           const SizedBox(height: 18),
 
-          // Follow + Message buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _FollowButton(
-                isFollowing: isFollowing,
-                onTap: onFollowTap,
+          // Subject pills
+          if (educator.subject.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: educator.subject
+                  .take(3)
+                  .map((s) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.06)
+                              : kPrimaryBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.08)
+                                : kPrimaryMid,
+                          ),
+                        ),
+                        child: Text(s,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? kText2Dark : kPrimary,
+                            )),
+                      ))
+                  .toList(),
+            ),
+
+          const SizedBox(height: 18),
+
+          // Follow button
+          GestureDetector(
+            onTap: onFollowTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              decoration: BoxDecoration(
+                color: isFollowing ? kPrimaryBg : kPrimary,
+                borderRadius: BorderRadius.circular(16),
+                border: isFollowing ? Border.all(color: kPrimaryMid) : null,
+                boxShadow: isFollowing
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: kPrimary.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FollowButton extends StatelessWidget {
-  final bool isFollowing;
-  final VoidCallback onTap;
-
-  const _FollowButton({required this.isFollowing, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 11),
-        decoration: BoxDecoration(
-          color: isFollowing ? _EduColors.primaryContainer : _EduColors.primary,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: isFollowing
-              ? []
-              : [
-                  BoxShadow(
-                    color: _EduColors.primary.withOpacity(0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
-        child: Text(
-          isFollowing ? 'Following' : 'Follow',
-          style: TextStyle(
-            fontFamily: 'Manrope',
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-            color: isFollowing
-                ? _EduColors.onPrimaryContainer
-                : _EduColors.onPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MessageButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _EduColors.surfaceContainerHighest),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.chat_bubble_outline_rounded,
-              size: 16, color: _EduColors.onSurfaceVariant),
-          SizedBox(width: 6),
-          Text(
-            'Message',
-            style: TextStyle(
-              fontFamily: 'Manrope',
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: _EduColors.onSurfaceVariant,
+              child: Text(
+                isFollowing ? 'Following' : 'Follow',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: isFollowing ? kPrimary : Colors.white,
+                ),
+              ),
             ),
           ),
         ],
@@ -1385,157 +941,125 @@ class _MessageButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// BENTO STATS GRID
-// ─────────────────────────────────────────────
-
-class _BentoStatsGrid extends ConsumerWidget {
+// ── Stats grid ─────────────────────────────────────────────────────────────────
+class _StatsGrid extends ConsumerWidget {
   final Educator educator;
   final String educatorId;
   final int? followerCount;
+  final bool isDark;
 
-  const _BentoStatsGrid({
+  const _StatsGrid({
     required this.educator,
     required this.educatorId,
+    required this.isDark,
     this.followerCount,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coursesAsync = ref.watch(educatorCoursesProvider(educatorId));
-    final tsAsync = ref.watch(educatorTestSeriesProvider(educatorId));
-    final webinarsAsync = ref.watch(educatorWebinarsProvider(educatorId));
+    final coursesCount = ref
+        .watch(educatorCoursesProvider(educatorId))
+        .maybeWhen(data: (c) => c.length, orElse: () => 0);
+    final tsCount = ref
+        .watch(educatorTestSeriesProvider(educatorId))
+        .maybeWhen(data: (t) => t.length, orElse: () => 0);
+    final webinarCount = ref
+        .watch(educatorWebinarsProvider(educatorId))
+        .maybeWhen(data: (w) => w.length, orElse: () => 0);
+    final fCount = followerCount ?? educator.followerCount;
 
-    final courseCount = coursesAsync.maybeWhen(
-      data: (c) => c.length,
-      orElse: () => 0,
-    );
-    final tsCount = tsAsync.maybeWhen(
-      data: (t) => t.length,
-      orElse: () => 0,
-    );
-    final webinarCount = webinarsAsync.maybeWhen(
-      data: (w) => w.length,
-      orElse: () => 0,
-    );
+    final stats = [
+      _StatItem(Icons.menu_book_rounded, '$coursesCount', 'Courses'),
+      _StatItem(Icons.assignment_rounded, '$tsCount', 'Test Series'),
+      _StatItem(Icons.videocam_rounded, '$webinarCount', 'Webinars'),
+      _StatItem(Icons.people_rounded, _fmtCount(fCount), 'Followers'),
+    ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 2.1,
-        children: [
-          _BentoStatCard(
-            iconData: Icons.menu_book_rounded,
-            iconColor: _EduColors.primary,
-            iconBg: _EduColors.primaryContainer,
-            value: '$courseCount',
-            label: 'Courses',
-            valueColor: _EduColors.primary,
-          ),
-          _BentoStatCard(
-            iconData: Icons.description_rounded,
-            iconColor: _EduColors.secondary,
-            iconBg: _EduColors.secondaryContainer,
-            value: '$tsCount',
-            label: 'Test Series',
-            valueColor: _EduColors.secondary,
-          ),
-          _BentoStatCard(
-            iconData: Icons.podcasts_rounded,
-            iconColor: _EduColors.tertiary,
-            iconBg: _EduColors.tertiaryContainer,
-            value: '$webinarCount',
-            label: 'Webinars',
-            valueColor: _EduColors.tertiary,
-          ),
-          _BentoStatCard(
-            iconData: Icons.people_alt_rounded,
-            iconColor: _EduColors.onSurfaceVariant,
-            iconBg: _EduColors.surfaceContainerHighest,
-            value: _formatCount(followerCount ?? educator.followerCount),
-            label: 'Followers',
-            valueColor: _EduColors.onSurface,
-          ),
-        ],
+      child: Row(
+        children: stats.map((s) {
+          final isLast = s == stats.last;
+          return Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _StatCard(stat: s, isDark: isDark)),
+                if (!isLast) const SizedBox(width: 10),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  String _formatCount(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return '$count';
+  String _fmtCount(int c) {
+    if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
+    if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
+    return '$c';
   }
 }
 
-class _BentoStatCard extends StatelessWidget {
-  final IconData iconData;
-  final Color iconColor;
-  final Color iconBg;
-  final String value;
-  final String label;
-  final Color valueColor;
+class _StatItem {
+  final IconData icon;
+  final String value, label;
+  const _StatItem(this.icon, this.value, this.label);
+}
 
-  const _BentoStatCard({
-    required this.iconData,
-    required this.iconColor,
-    required this.iconBg,
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
+class _StatCard extends StatelessWidget {
+  final _StatItem stat;
+  final bool isDark;
+  const _StatCard({required this.stat, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLow,
+        color: isDark ? kSurfaceDark : kSurface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: iconBg,
+              color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(iconData, color: iconColor, size: 20),
+            child: Icon(stat.icon, color: kPrimary, size: 17),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontFamily: 'Manrope',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: valueColor,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: _EduColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            stat.value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: kPrimary,
+              letterSpacing: -0.4,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            stat.label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: isDark ? kText2Dark : kText3Light,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -1543,37 +1067,38 @@ class _BentoStatCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// BOOK SESSION CARD
-// ─────────────────────────────────────────────
-
+// ── Book 1:1 ──────────────────────────────────────────────────────────────────
 class _BookSessionCard extends StatelessWidget {
   final Educator educator;
-
-  const _BookSessionCard({required this.educator});
+  final bool isDark;
+  const _BookSessionCard({required this.educator, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     final fee = educator.payPerHourFee ?? 0;
-    if (fee <= 0) {
-      return const SizedBox.shrink();
-    }
+    if (fee <= 0) return const SizedBox.shrink();
     final feeText =
         fee % 1 == 0 ? fee.toStringAsFixed(0) : fee.toStringAsFixed(2);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
       decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? kSurfaceDark : kSurface,
+        borderRadius: BorderRadius.circular(18),
         border: Border(
-          left: const BorderSide(color: _EduColors.primary, width: 4),
+          left: const BorderSide(color: kPrimary, width: 3.5),
+          top: BorderSide(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
+          right: BorderSide(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
+          bottom: BorderSide(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+            blurRadius: 10,
             offset: const Offset(0, 3),
           ),
         ],
@@ -1584,15 +1109,12 @@ class _BookSessionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Book 1:1 Session',
-                  style: TextStyle(
-                    fontFamily: 'Manrope',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: _EduColors.onSurface,
-                  ),
-                ),
+                Text('Book 1:1 Session',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: isDark ? kText1Dark : kText1Light,
+                    )),
                 const SizedBox(height: 4),
                 RichText(
                   text: TextSpan(
@@ -1600,18 +1122,17 @@ class _BookSessionCard extends StatelessWidget {
                       TextSpan(
                         text: '₹$feeText ',
                         style: const TextStyle(
-                          fontFamily: 'Manrope',
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                           fontSize: 20,
-                          color: _EduColors.primary,
+                          color: kPrimary,
+                          letterSpacing: -0.4,
                         ),
                       ),
-                      const TextSpan(
+                      TextSpan(
                         text: '/ hour',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: _EduColors.onSurfaceVariant,
+                          color: isDark ? kText2Dark : kText2Light,
                         ),
                       ),
                     ],
@@ -1621,20 +1142,16 @@ class _BookSessionCard extends StatelessWidget {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              // Handle book session
-            },
+            onTap: () {},
             child: Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: _EduColors.primaryContainer,
+                color: kPrimaryBg,
                 shape: BoxShape.circle,
+                border: Border.all(color: kPrimaryMid),
               ),
-              child: const Icon(
-                Icons.calendar_today_rounded,
-                color: _EduColors.primary,
-                size: 22,
-              ),
+              child: const Icon(Icons.calendar_today_rounded,
+                  color: kPrimary, size: 20),
             ),
           ),
         ],
@@ -1643,15 +1160,13 @@ class _BookSessionCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// ABOUT SECTION
-// ─────────────────────────────────────────────
-
+// ── About section ──────────────────────────────────────────────────────────────
 class _AboutSection extends StatelessWidget {
   final String bio;
   final List<String> subjects;
   final String experience;
   final bool expanded;
+  final bool isDark;
   final VoidCallback onToggle;
 
   const _AboutSection({
@@ -1659,216 +1174,225 @@ class _AboutSection extends StatelessWidget {
     required this.subjects,
     required this.experience,
     required this.expanded,
+    required this.isDark,
     required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final trimmedBio = bio.trim();
-    final hasBio = trimmedBio.isNotEmpty;
-    final isLong = trimmedBio.length > 180;
+    final trimmed = bio.trim();
+    final hasBio = trimmed.isNotEmpty;
+    final isLong = trimmed.length > 180;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'About Me',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('About Me',
                 style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 19,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: _EduColors.onSurface,
-                ),
-              ),
-              const Spacer(),
-              if (experience.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: _EduColors.tertiaryContainer,
-                    borderRadius: BorderRadius.circular(20),
+                  letterSpacing: -0.3,
+                  color: isDark ? kText1Dark : kText1Light,
+                )),
+            const Spacer(),
+            if (experience.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color:
+                        isDark ? Colors.white.withOpacity(0.08) : kPrimaryMid,
                   ),
-                  child: Text(
-                    '$experience Exp',
+                ),
+                child: Text('$experience Exp',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: _EduColors.tertiary,
-                    ),
-                  ),
-                ),
+                      color: kPrimary,
+                    )),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? kSurfaceDark : kSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // Bio card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _EduColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasBio
-                      ? (expanded || !isLong
-                          ? trimmedBio
-                          : '${trimmedBio.substring(0, 180)}...')
-                      : 'No bio added yet.',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: _EduColors.onSurfaceVariant,
-                    height: 1.65,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                hasBio
+                    ? (expanded || !isLong
+                        ? trimmed
+                        : '${trimmed.substring(0, 180)}…')
+                    : 'No bio added yet.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.65,
+                  color: isDark ? kText2Dark : kText2Light,
                 ),
-                if (hasBio && isLong) ...[
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: onToggle,
-                    child: Text(
-                      expanded ? 'Show less' : 'Read more',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: _EduColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+              ),
+              if (hasBio && isLong) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onToggle,
+                  child: Text(
+                    expanded ? 'Show less' : 'Read more',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: kPrimary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-                if (subjects.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: subjects.asMap().entries.map((entry) {
-                      final isFirst = entry.key == 0;
-                      return _SubjectChip(
-                        label: entry.value,
-                        bg: isFirst
-                            ? _EduColors.primaryContainer
-                            : _EduColors.secondaryContainer,
-                        fg: isFirst
-                            ? _EduColors.primary
-                            : _EduColors.onSecondaryContainer,
-                      );
-                    }).toList(),
-                  ),
-                ],
+                ),
               ],
-            ),
+              if (subjects.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: subjects
+                      .map((s) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : kPrimaryBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.08)
+                                    : kPrimaryMid,
+                              ),
+                            ),
+                            child: Text(s,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? kText2Dark : kPrimary,
+                                )),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SubjectChip extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-
-  const _SubjectChip({
-    required this.label,
-    required this.bg,
-    required this.fg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: fg,
         ),
-      ),
+      ],
     );
   }
 }
 
-// ─────────────────────────────────────────────
-// BACKGROUND SECTION (Qualifications)
-// ─────────────────────────────────────────────
-
+// ── Background section ─────────────────────────────────────────────────────────
 class _BackgroundSection extends StatelessWidget {
   final List<Qualification> qualifications;
   final List<WorkExperience> workExperience;
+  final bool isDark;
+
   const _BackgroundSection({
     required this.qualifications,
     required this.workExperience,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Background',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Background',
             style: TextStyle(
-              fontFamily: 'Manrope',
-              fontSize: 19,
+              fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: _EduColors.onSurface,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (workExperience.isEmpty && qualifications.isEmpty)
-            const _EmptyCardPlaceholder(
-              message: 'No background details added yet',
-            ),
-          ...workExperience.map((w) => _BackgroundTile(
-                qual: Qualification(
-                  title: w.title ?? 'Experience',
-                  institution: w.company ?? '',
-                  year: w.duration,
-                ),
-                isExperience: true,
-              )),
-          ...qualifications.map((q) => _BackgroundTile(qual: q)),
-        ],
-      ),
+              letterSpacing: -0.3,
+              color: isDark ? kText1Dark : kText1Light,
+            )),
+        const SizedBox(height: 10),
+        if (workExperience.isEmpty && qualifications.isEmpty)
+          _emptyCard('No background details added yet.', isDark),
+        ...workExperience.map((w) => _BackgroundTile(
+              title: w.title ?? 'Experience',
+              institution: w.company ?? '',
+              year: w.duration,
+              isExperience: true,
+              isDark: isDark,
+            )),
+        ...qualifications.map((q) => _BackgroundTile(
+              title: q.title ?? q.degree ?? 'Qualification',
+              institution: q.institution,
+              year: q.year,
+              isExperience: false,
+              isDark: isDark,
+            )),
+      ],
     );
   }
+
+  Widget _emptyCard(String msg, bool isDark) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+          ),
+        ),
+        child: Text(msg,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? kText2Dark : kText2Light,
+            )),
+      );
 }
 
 class _BackgroundTile extends StatelessWidget {
-  final Qualification qual;
+  final String title;
+  final String? institution;
+  final String? year;
   final bool isExperience;
-  const _BackgroundTile({required this.qual, this.isExperience = false});
+  final bool isDark;
+
+  const _BackgroundTile({
+    required this.title,
+    required this.institution,
+    required this.year,
+    required this.isExperience,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDegree = qual.degree != null && !isExperience;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
+        color: isDark ? kSurfaceDark : kSurface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.04),
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1876,59 +1400,54 @@ class _BackgroundTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Circular icon
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: _EduColors.surfaceContainerHigh,
+              color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isDegree ? Icons.school_rounded : Icons.work_rounded,
-              color: isDegree ? _EduColors.tertiary : _EduColors.primary,
-              size: 22,
+              isExperience ? Icons.work_rounded : Icons.school_rounded,
+              color: kPrimary,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  qual.title ?? qual.degree ?? 'Qualification',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: _EduColors.onSurface,
-                  ),
-                ),
-                if (qual.institution != null) ...[
+                Text(title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isDark ? kText1Dark : kText1Light,
+                    )),
+                if (institution != null && institution!.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(
-                    qual.institution!,
-                    style: const TextStyle(
-                        fontSize: 12, color: _EduColors.onSurfaceVariant),
-                  ),
+                  Text(institution!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? kText2Dark : kText2Light,
+                      )),
                 ],
               ],
             ),
           ),
-          if (qual.year != null)
+          if (year != null && year!.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _EduColors.surfaceContainerLow,
+                color: isDark ? Colors.white.withOpacity(0.05) : kDivLight,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                qual.year!,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: _EduColors.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text(year!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? kText2Dark : kText2Light,
+                  )),
             ),
         ],
       ),
@@ -1936,83 +1455,368 @@ class _BackgroundTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// TAB VIEWS
-// ─────────────────────────────────────────────
+// ── Ratings section ────────────────────────────────────────────────────────────
+class _RatingsSection extends StatelessWidget {
+  final Educator educator;
+  final AsyncValue<List<Course>> coursesAsync;
+  final AsyncValue<List<TestSeries>> tsAsync;
+  final int myRating;
+  final bool isDark;
+  final ValueChanged<int> onRate;
 
+  const _RatingsSection({
+    required this.educator,
+    required this.coursesAsync,
+    required this.tsAsync,
+    required this.myRating,
+    required this.isDark,
+    required this.onRate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final avg = educator.rating?.average ?? 0;
+    final count = educator.rating?.count ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Ratings & Reviews',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: isDark ? kText1Dark : kText1Light,
+                )),
+            const Spacer(),
+            const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+            const SizedBox(width: 4),
+            Text(avg.toStringAsFixed(1),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? kText1Dark : kText1Light,
+                )),
+            const SizedBox(width: 4),
+            Text('($count)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? kText2Dark : kText3Light,
+                )),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Your rating
+        Row(
+          children: [
+            Text('Your Rating',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? kText2Dark : kText2Light,
+                )),
+            const SizedBox(width: 12),
+            ...List.generate(5, (i) {
+              final v = i + 1;
+              final filled = v <= myRating;
+              return GestureDetector(
+                onTap: () => onRate(v),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: filled
+                        ? const Color(0xFFF59E0B)
+                        : (isDark ? kText2Dark : kText3Light),
+                    size: 26,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Reviews
+        _buildReviews(),
+      ],
+    );
+  }
+
+  Widget _buildReviews() {
+    return coursesAsync.when(
+      loading: () => Column(children: [
+        _shimmerCard(),
+        const SizedBox(height: 10),
+        _shimmerCard(),
+      ]),
+      error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
+      data: (courses) => tsAsync.when(
+        loading: () => Column(children: [
+          _shimmerCard(),
+          const SizedBox(height: 10),
+          _shimmerCard(),
+        ]),
+        error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
+        data: (series) {
+          final reviews = [
+            ..._fromCourses(courses),
+            ..._fromSeries(series),
+          ]..sort((a, b) => (b.updatedAt ?? DateTime(0))
+              .compareTo(a.updatedAt ?? DateTime(0)));
+
+          if (reviews.isEmpty) {
+            return _infoCard('No reviews yet',
+                'Reviews appear after students rate courses or tests.');
+          }
+          return Column(
+            children: reviews
+                .take(4)
+                .map((r) => _ReviewCard(review: r, isDark: isDark))
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
+
+  List<_Review> _fromCourses(List<Course> courses) {
+    final out = <_Review>[];
+    for (final c in courses) {
+      for (final r in c.reviews) {
+        if ((r.comment ?? '').trim().isEmpty) continue;
+        out.add(_Review(
+          source: c.title,
+          name: r.name ?? 'Student',
+          avatar: r.avatar,
+          rating: r.rating ?? 0,
+          comment: r.comment ?? '',
+          updatedAt: r.updatedAt ?? r.createdAt,
+        ));
+      }
+    }
+    return out;
+  }
+
+  List<_Review> _fromSeries(List<TestSeries> series) {
+    final out = <_Review>[];
+    for (final ts in series) {
+      for (final r in ts.reviews) {
+        if ((r.comment ?? '').trim().isEmpty) continue;
+        out.add(_Review(
+          source: ts.title,
+          name: r.name ?? 'Student',
+          avatar: r.avatar,
+          rating: r.rating ?? 0,
+          comment: r.comment ?? '',
+          updatedAt: r.updatedAt ?? r.createdAt,
+        ));
+      }
+    }
+    return out;
+  }
+
+  Widget _shimmerCard() => const ShimmerCard(height: 88);
+
+  Widget _infoCard(String title, String sub) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: isDark ? kText1Dark : kText1Light,
+                )),
+            const SizedBox(height: 4),
+            Text(sub,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? kText2Dark : kText2Light,
+                )),
+          ],
+        ),
+      );
+}
+
+class _Review {
+  final String source, name, comment;
+  final String? avatar;
+  final double rating;
+  final DateTime? updatedAt;
+  const _Review({
+    required this.source,
+    required this.name,
+    required this.avatar,
+    required this.rating,
+    required this.comment,
+    required this.updatedAt,
+  });
+}
+
+class _ReviewCard extends StatelessWidget {
+  final _Review review;
+  final bool isDark;
+  const _ReviewCard({required this.review, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? kSurfaceDark : kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: kPrimaryBg,
+            backgroundImage: review.avatar != null && review.avatar!.isNotEmpty
+                ? NetworkImage(review.avatar!)
+                : null,
+            child: review.avatar == null || review.avatar!.isEmpty
+                ? Text(
+                    review.name.isNotEmpty ? review.name[0].toUpperCase() : 'S',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: kPrimary,
+                      fontSize: 14,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(review.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: isDark ? kText1Dark : kText1Light,
+                          )),
+                    ),
+                    const Icon(Icons.star_rounded,
+                        size: 13, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 3),
+                    Text(review.rating.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? kText2Dark : kText2Light,
+                        )),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(review.source,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? kText2Dark : kText3Light,
+                    )),
+                const SizedBox(height: 6),
+                Text(review.comment,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: isDark ? kText2Dark : kText2Light,
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tab views ──────────────────────────────────────────────────────────────────
 class _CoursesTab extends ConsumerWidget {
-  final String educatorId;
-  final String educatorName;
+  final String educatorId, educatorName;
+  final bool isDark;
   const _CoursesTab({
     required this.educatorId,
     required this.educatorName,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coursesAsync = ref.watch(educatorCoursesProvider(educatorId));
-
-    return coursesAsync.when(
-      loading: () => const _LoadingGrid(),
-      error: (e, _) => const _EmptyState(
-        emoji: '📚',
-        message: 'Failed to load courses',
-        subtitle: 'Please try again later',
-      ),
+    final async = ref.watch(educatorCoursesProvider(educatorId));
+    return async.when(
+      loading: () => _loadingList(),
+      error: (e, _) => _emptyState('Failed to load courses', isDark),
       data: (courses) {
-        final otooCourses = courses
+        final oto = courses
             .where((c) => c.courseType == 'one-to-one' || c.courseType == 'OTO')
             .toList();
-        final otaCourses = courses
+        final ota = courses
             .where((c) => c.courseType == 'one-to-all' || c.courseType == 'OTA')
             .toList();
+
+        if (oto.isEmpty && ota.isEmpty) {
+          return _emptyState('No courses yet', isDark);
+        }
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
           children: [
-            if (otooCourses.isNotEmpty) ...[
-              _TabSectionHeader(
-                title: 'One to One Live',
-                subtitle: 'Personalized sessions for focused learning',
-                onSeeAll: () {},
-              ),
-              const SizedBox(height: 14),
+            if (oto.isNotEmpty) ...[
+              _tabHeader('One to One', 'Personalized live sessions', isDark),
+              const SizedBox(height: 12),
               SizedBox(
-                height: 230,
+                height: 220,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: otooCourses.length,
+                  itemCount: oto.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (_, i) =>
-                      _CourseCardHorizontal(course: otooCourses[i]),
+                      _CourseCard(course: oto[i], isDark: isDark),
                 ),
               ),
               const SizedBox(height: 24),
             ],
-            if (otaCourses.isNotEmpty) ...[
-              _TabSectionHeader(
-                title: 'One to All Live',
-                subtitle: 'Interactive group learning classes',
-                onSeeAll: () {},
-              ),
-              const SizedBox(height: 14),
+            if (ota.isNotEmpty) ...[
+              _tabHeader('One to All', 'Interactive group classes', isDark),
+              const SizedBox(height: 12),
               SizedBox(
-                height: 230,
+                height: 220,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: otaCourses.length,
+                  itemCount: ota.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (_, i) =>
-                      _CourseCardHorizontal(course: otaCourses[i]),
+                      _CourseCard(course: ota[i], isDark: isDark),
                 ),
               ),
             ],
-            if (otooCourses.isEmpty && otaCourses.isEmpty)
-              const _EmptyState(
-                emoji: '📚',
-                message: 'No courses yet',
-                subtitle: 'Check back later for new courses',
-              ),
           ],
         );
       },
@@ -2021,39 +1825,29 @@ class _CoursesTab extends ConsumerWidget {
 }
 
 class _WebinarsTab extends ConsumerWidget {
-  final String educatorId;
-  final String educatorName;
-  const _WebinarsTab({required this.educatorId, required this.educatorName});
+  final String educatorId, educatorName;
+  final bool isDark;
+  const _WebinarsTab({
+    required this.educatorId,
+    required this.educatorName,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final webinarsAsync = ref.watch(educatorWebinarsProvider(educatorId));
-
-    return webinarsAsync.when(
-      loading: () => const _LoadingGrid(),
-      error: (e, _) => const _EmptyState(
-        emoji: '📅',
-        message: 'Failed to load webinars',
-        subtitle: 'Please try again later',
-      ),
-      data: (webinars) {
-        if (webinars.isEmpty) {
-          return const _EmptyState(
-            emoji: '📅',
-            message: 'No webinars yet',
-            subtitle: 'Join live and upcoming webinars',
-          );
-        }
+    final async = ref.watch(educatorWebinarsProvider(educatorId));
+    return async.when(
+      loading: () => _loadingList(),
+      error: (e, _) => _emptyState('Failed to load webinars', isDark),
+      data: (list) {
+        if (list.isEmpty) return _emptyState('No webinars yet', isDark);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
           children: [
-            _TabSectionHeader(
-              title: 'Webinars by $educatorName',
-              subtitle: 'Join live and upcoming sessions',
-              onSeeAll: () {},
-            ),
-            const SizedBox(height: 14),
-            ...webinars.take(6).map((w) => _WebinarCard(webinar: w)),
+            _tabHeader('Webinars by $educatorName', 'Live & upcoming sessions',
+                isDark),
+            const SizedBox(height: 12),
+            ...list.take(6).map((w) => _WebinarRow(webinar: w, isDark: isDark)),
           ],
         );
       },
@@ -2062,39 +1856,31 @@ class _WebinarsTab extends ConsumerWidget {
 }
 
 class _TestSeriesTab extends ConsumerWidget {
-  final String educatorId;
-  final String educatorName;
-  const _TestSeriesTab({required this.educatorId, required this.educatorName});
+  final String educatorId, educatorName;
+  final bool isDark;
+  const _TestSeriesTab({
+    required this.educatorId,
+    required this.educatorName,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tsAsync = ref.watch(educatorTestSeriesProvider(educatorId));
-
-    return tsAsync.when(
-      loading: () => const _LoadingGrid(),
-      error: (e, _) => const _EmptyState(
-        emoji: '📝',
-        message: 'Failed to load test series',
-        subtitle: 'Please try again later',
-      ),
-      data: (testSeries) {
-        if (testSeries.isEmpty) {
-          return const _EmptyState(
-            emoji: '📝',
-            message: 'No test series yet',
-            subtitle: 'Practice with comprehensive test series',
-          );
-        }
+    final async = ref.watch(educatorTestSeriesProvider(educatorId));
+    return async.when(
+      loading: () => _loadingList(),
+      error: (e, _) => _emptyState('Failed to load test series', isDark),
+      data: (list) {
+        if (list.isEmpty) return _emptyState('No test series yet', isDark);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
           children: [
-            _TabSectionHeader(
-              title: 'Test Series by $educatorName',
-              subtitle: 'Practice with curated test series',
-              onSeeAll: () {},
-            ),
-            const SizedBox(height: 14),
-            ...testSeries.take(6).map((ts) => _TestSeriesCard(testSeries: ts)),
+            _tabHeader('Test Series by $educatorName',
+                'Practice with curated tests', isDark),
+            const SizedBox(height: 12),
+            ...list
+                .take(6)
+                .map((ts) => _TestSeriesRow(testSeries: ts, isDark: isDark)),
           ],
         );
       },
@@ -2102,194 +1888,133 @@ class _TestSeriesTab extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// TAB SECTION HEADER
-// ─────────────────────────────────────────────
-
-class _TabSectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onSeeAll;
-
-  const _TabSectionHeader({
-    required this.title,
-    required this.subtitle,
-    required this.onSeeAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: _EduColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                    fontSize: 12, color: _EduColors.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-        GestureDetector(
-          onTap: onSeeAll,
-          child: const Text(
-            'See All',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: _EduColors.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// CARDS
-// ─────────────────────────────────────────────
-
-/// Horizontal scrollable course card (like HTML design)
-class _CourseCardHorizontal extends StatelessWidget {
+// ── Content cards ──────────────────────────────────────────────────────────────
+class _CourseCard extends StatelessWidget {
   final Course course;
-  const _CourseCardHorizontal({required this.course});
+  final bool isDark;
+  const _CourseCard({required this.course, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    final isOTO =
-        course.courseType == 'one-to-one' || course.courseType == 'OTO';
-
     return GestureDetector(
       onTap: () => context.push('/course/${course.id}'),
       child: Container(
-        width: 220,
+        width: 215,
         decoration: BoxDecoration(
-          color: _EduColors.surfaceContainerLowest,
+          color: isDark ? kSurfaceDark : kSurface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF282B51).withOpacity(0.07),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
             ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
-              child: SizedBox(
-                height: 110,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    course.imageUrl.isNotEmpty
+              child: Stack(
+                children: [
+                  SizedBox(
+                    height: 110,
+                    width: double.infinity,
+                    child: course.imageUrl.isNotEmpty
                         ? Image.network(course.imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _CourseThumbnailPlaceholder())
-                        : _CourseThumbnailPlaceholder(),
-                    // LIVE badge
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _EduColors.primary.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(6),
+                            errorBuilder: (_, __, ___) => _thumb())
+                        : _thumb(),
+                  ),
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
                         ),
-                        child: const Text(
-                          'LIVE',
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: kPrimary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text('LIVE',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 9,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
+                          )),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-
-            // Content
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    course.title,
-                    style: const TextStyle(
-                      fontFamily: 'Manrope',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: _EduColors.onSurface,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule_rounded,
-                          size: 12, color: _EduColors.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Text(
-                        course.subject.take(1).join(', '),
-                        style: const TextStyle(
-                            fontSize: 11, color: _EduColors.onSurfaceVariant),
+                  Text(course.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: isDark ? kText1Dark : kText1Light,
                       ),
-                    ],
-                  ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Text(course.subject.take(1).join(', '),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? kText2Dark : kText2Light,
+                      )),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      PriceWidget(
-                        price: course.finalPrice,
-                        originalPrice: course.fees,
-                        discount: course.discount,
-                        fontSize: 14,
+                      Text(
+                        course.fees == null || course.finalPrice <= 0
+                            ? 'Free'
+                            : '₹${course.finalPrice.toInt()}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: course.fees == null
+                              ? const Color(0xFF16A34A)
+                              : kPrimary,
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: _EduColors.primary,
-                          borderRadius: BorderRadius.circular(8),
+                          color: kPrimary,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
-                          'Enroll',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: const Text('Enroll',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            )),
                       ),
                     ],
                   ),
@@ -2301,300 +2026,246 @@ class _CourseCardHorizontal extends StatelessWidget {
       ),
     );
   }
+
+  Widget _thumb() => Container(
+        height: 110,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kPrimary, kPrimaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: const Center(
+          child:
+              Icon(Icons.play_circle_rounded, color: Colors.white24, size: 40),
+        ),
+      );
 }
 
-class _WebinarCard extends StatelessWidget {
+class _WebinarRow extends StatelessWidget {
   final dynamic webinar;
-  const _WebinarCard({required this.webinar});
+  final bool isDark;
+  const _WebinarRow({required this.webinar, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     final title = webinar['title'] ?? 'Webinar';
-    final description = webinar['description'] ?? '';
     final date = webinar['scheduledAt'] ?? webinar['date'] ?? '';
-    final imageUrl = webinar['imageUrl'] ?? webinar['thumbnail'] ?? '';
+    final img = webinar['imageUrl'] ?? webinar['thumbnail'] ?? '';
     final id = webinar['_id'] ?? webinar['id'] ?? '';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTap: () => context.push('/webinar/$id'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
           ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => context.push('/webinar/$id'),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _WebinarThumbnailPlaceholder())
-                      : _WebinarThumbnailPlaceholder(),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TypeBadge(
-                      label: 'Webinar',
-                      bg: const Color(0xFFFFF3E0),
-                      fg: const Color(0xFFE65100),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontFamily: 'Manrope',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: _EduColors.onSurface,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        description,
-                        style: const TextStyle(
-                            fontSize: 12, color: _EduColors.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (date.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded,
-                              size: 11, color: _EduColors.onSurfaceVariant),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDate(date),
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: _EduColors.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: _EduColors.outline, size: 20),
-            ],
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final dt = DateTime.parse(dateStr);
-      return '${dt.day}/${dt.month}/${dt.year}';
-    } catch (_) {
-      return dateStr;
-    }
-  }
-}
-
-class _TestSeriesCard extends StatelessWidget {
-  final TestSeries testSeries;
-  const _TestSeriesCard({required this.testSeries});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF282B51).withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => context.push('/test-series/${testSeries.id}'),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: _EduColors.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.assignment_rounded,
-                    color: _EduColors.tertiary, size: 26),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 76,
+                height: 76,
+                child: img.isNotEmpty
+                    ? Image.network(img,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imgFallback())
+                    : _imgFallback(),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TypeBadge(
-                      label: 'Test Series',
-                      bg: _EduColors.tertiaryContainer,
-                      fg: _EduColors.tertiary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color:
+                          isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      testSeries.title,
-                      style: const TextStyle(
-                        fontFamily: 'Manrope',
+                    child: const Text('Webinar',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: kPrimary,
+                        )),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(title,
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: _EduColors.onSurface,
+                        fontSize: 13,
+                        color: isDark ? kText1Dark : kText1Light,
                       ),
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
+                      overflow: TextOverflow.ellipsis),
+                  if (date.isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.quiz_outlined,
-                            size: 12, color: _EduColors.onSurfaceVariant),
+                        const Icon(Icons.calendar_month_rounded,
+                            size: 12, color: kPrimary),
                         const SizedBox(width: 4),
-                        Text(
-                          '${testSeries.totalTests ?? 0} Tests',
-                          style: const TextStyle(
-                              fontSize: 12, color: _EduColors.onSurfaceVariant),
-                        ),
+                        Text(_fmtDate(date),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? kText2Dark : kText2Light,
+                            )),
                       ],
                     ),
                   ],
-                ),
+                ],
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: _EduColors.outline, size: 20),
-            ],
+            ),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 12, color: kPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmtDate(String d) {
+    try {
+      final dt = DateTime.parse(d);
+      return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return d;
+    }
+  }
+
+  Widget _imgFallback() => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [kPrimary, kPrimaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// SHARED SMALL WIDGETS
-// ─────────────────────────────────────────────
-
-class _TypeBadge extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-
-  const _TypeBadge({
-    required this.label,
-    required this.bg,
-    required this.fg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
+        child: const Center(
+          child: Icon(Icons.videocam_rounded, color: Colors.white24, size: 28),
         ),
-      ),
-    );
-  }
+      );
 }
 
-class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconButton({required this.icon, required this.onTap});
+class _TestSeriesRow extends StatelessWidget {
+  final TestSeries testSeries;
+  final bool isDark;
+  const _TestSeriesRow({required this.testSeries, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => context.push('/test-series/${testSeries.id}'),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: _EduColors.surfaceContainerLow,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: _EduColors.primary, size: 20),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final String emoji;
-  final String message;
-  final String subtitle;
-  const _EmptyState({
-    required this.emoji,
-    required this.message,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 52)),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: _EduColors.onSurface,
-              ),
-              textAlign: TextAlign.center,
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                  fontSize: 13, color: _EduColors.onSurfaceVariant),
-              textAlign: TextAlign.center,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Icon(Icons.assignment_rounded,
+                  color: kPrimary, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color:
+                          isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('Test Series',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: kPrimary,
+                        )),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(testSeries.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? kText1Dark : kText1Light,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.quiz_rounded,
+                          size: 12, color: isDark ? kText2Dark : kText3Light),
+                      const SizedBox(width: 4),
+                      Text('${testSeries.totalTests ?? 0} Tests',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? kText2Dark : kText2Light,
+                          )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 12, color: kPrimary),
             ),
           ],
         ),
@@ -2603,68 +2274,84 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _EmptyCardPlaceholder extends StatelessWidget {
-  final String message;
-  const _EmptyCardPlaceholder({required this.message});
+// ── Shared helpers ─────────────────────────────────────────────────────────────
+Widget _tabHeader(String title, String sub, bool isDark) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: isDark ? kText1Dark : kText1Light,
+                  )),
+              const SizedBox(height: 2),
+              Text(sub,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? kText2Dark : kText2Light,
+                  )),
+            ],
+          ),
+        ),
+        const Text('See All',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: kPrimary,
+            )),
+      ],
+    );
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 36),
-      decoration: BoxDecoration(
-        color: _EduColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _EduColors.surfaceContainerHighest),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style:
-              const TextStyle(color: _EduColors.onSurfaceVariant, fontSize: 14),
+Widget _emptyState(String msg, bool isDark) => Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                  color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+              child: const Icon(Icons.inbox_rounded, color: kPrimary, size: 32),
+            ),
+            const SizedBox(height: 14),
+            Text(msg,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? kText1Dark : kText1Light,
+                ),
+                textAlign: TextAlign.center),
+          ],
         ),
       ),
     );
-  }
-}
 
-class _LoadingGrid extends StatelessWidget {
-  const _LoadingGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
+Widget _loadingList() => ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      children: List.generate(4, (_) => const ShimmerCard(height: 110)),
+      children: List.generate(
+          3,
+          (_) => const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: ShimmerCard(height: 100))),
     );
-  }
-}
 
-class _CourseThumbnailPlaceholder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: _EduColors.primaryContainer,
-      child: const Icon(Icons.play_circle_outline_rounded,
-          size: 36, color: _EduColors.primary),
-    );
-  }
-}
-
-class _WebinarThumbnailPlaceholder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFFFF3E0),
-      child: const Icon(Icons.videocam_outlined,
-          size: 36, color: Color(0xFFE65100)),
-    );
-  }
-}
-
+// ── Error view ─────────────────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
+  final bool isDark;
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2675,49 +2362,51 @@ class _ErrorView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(22),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEF2F2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.warning_amber_rounded,
-                  size: 48, color: Color(0xFFEF4444)),
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                  color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+              child: const Icon(Icons.error_outline_rounded,
+                  color: kPrimary, size: 32),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Error Loading Profile',
-              style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: _EduColors.onSurface,
-              ),
-            ),
+            const SizedBox(height: 16),
+            Text('Error Loading Profile',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? kText1Dark : kText1Light,
+                )),
             const SizedBox(height: 8),
-            Text(
-              message,
-              style: const TextStyle(
-                  fontSize: 13, color: _EduColors.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _EduColors.primary,
-                foregroundColor: _EduColors.onPrimary,
+            Text(message,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? kText2Dark : kText2Light,
+                ),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: onRetry,
+              child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
+                decoration: BoxDecoration(
+                  color: kPrimary,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kPrimary.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Text('Try Again',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    )),
               ),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try Again',
-                  style: TextStyle(
-                    fontFamily: 'Manrope',
-                    fontWeight: FontWeight.w700,
-                  )),
             ),
           ],
         ),
@@ -2726,13 +2415,11 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// STICKY TAB BAR DELEGATE
-// ─────────────────────────────────────────────
-
-class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+// ── Sticky tab bar delegate ────────────────────────────────────────────────────
+class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
-  const _StickyTabBarDelegate(this.tabBar);
+  final bool isDark;
+  const _StickyTabDelegate({required this.tabBar, required this.isDark});
 
   @override
   double get minExtent => tabBar.preferredSize.height;
@@ -2740,15 +2427,13 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => tabBar.preferredSize.height;
 
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
     return Container(
-      color: _EduColors.background,
+      color: isDark ? kBgDark : kBgLight,
       child: tabBar,
     );
   }
 
   @override
-  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) =>
-      tabBar != oldDelegate.tabBar;
+  bool shouldRebuild(_StickyTabDelegate old) => tabBar != old.tabBar;
 }

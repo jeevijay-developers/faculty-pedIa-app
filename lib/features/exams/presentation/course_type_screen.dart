@@ -164,7 +164,12 @@ class _CourseTypeScreenState extends ConsumerState<CourseTypeScreen> {
               child: coursesAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(16),
-                  child: ShimmerList(itemCount: 5, itemHeight: 110),
+                  child: ShimmerList(
+                    itemCount: 5,
+                    itemHeight: 110,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  ),
                 ),
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(16),

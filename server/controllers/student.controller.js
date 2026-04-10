@@ -202,7 +202,7 @@ export const getStudentById = async (req, res) => {
       .populate({
         path: "followingEducators.educatorId",
         select:
-          "fullName firstName lastName username email specialization subject image profilePicture rating yoe experience yearsExperience slug",
+          "fullName firstName lastName username email specialization subject image profilePicture rating yoe experience yearsExperience slug followers",
       })
       .populate("tests.testId", "title duration overallMarks")
       .select("-password");
@@ -239,7 +239,7 @@ export const getStudentByUsername = async (req, res) => {
       .populate({
         path: "followingEducators.educatorId",
         select:
-          "fullName firstName lastName username email specialization subject image profilePicture rating yoe experience yearsExperience slug",
+          "fullName firstName lastName username email specialization subject image profilePicture rating yoe experience yearsExperience slug followers",
       })
       .select("-password");
 

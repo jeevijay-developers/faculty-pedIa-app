@@ -61,6 +61,7 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
   bool _isEnrolling = false;
   bool _descExpanded = false;
   String? _pendingIntentId;
+  bool _hasEnrolled = false;
 
   @override
   void initState() {
@@ -871,16 +872,11 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
     if (webinar == null) return const SizedBox.shrink();
 
     final isFree = webinar.isFree == true || (webinar.fees ?? 0) <= 0;
-    final btnText = webinar.isLive
-        ? 'Join Now'
-        : webinar.isUpcoming
-            ? 'Enroll & Join'
-            : 'View Recording';
-    final btnIcon = webinar.isLive
+    final isEnrolled = webinar.isEnrolled == true || _hasEnrolled;
+    final btnText = isEnrolled ? 'Join Webinar' : 'Enroll Now';
+    final btnIcon = isEnrolled
         ? Icons.videocam_rounded
-        : webinar.isUpcoming
-            ? Icons.how_to_reg_rounded
-            : Icons.play_circle_rounded;
+        : (isFree ? Icons.how_to_reg_rounded : Icons.payments_rounded);
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -899,7 +895,15 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
         ],
       ),
       child: GestureDetector(
-        onTap: _isEnrolling ? null : () => _startEnrollment(webinar),
+        onTap: _isEnrolling
+            ? null
+            : () {
+                if (isEnrolled) {
+                  context.go('/dashboard/webinars');
+                } else {
+                  _startEnrollment(webinar);
+                }
+              },
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -939,7 +943,7 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
                         letterSpacing: -0.2,
                       ),
                     ),
-                    if (!isFree) ...[
+                    if (!isEnrolled && !isFree) ...[
                       const SizedBox(width: 16),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -1075,7 +1079,10 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
         if (!mounted) return;
         _showSnack('Enrolled successfully.');
         ref.invalidate(webinarDetailProvider(webinar.id));
-        setState(() => _isEnrolling = false);
+        setState(() {
+          _hasEnrolled = true;
+          _isEnrolling = false;
+        });
         return;
       }
 
@@ -1137,6 +1144,7 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
       setState(() {
         _pendingIntentId = null;
         _isEnrolling = false;
+        _hasEnrolled = true;
       });
     } catch (error) {
       if (!mounted) return;

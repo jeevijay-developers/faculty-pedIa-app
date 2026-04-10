@@ -1,13 +1,35 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/models/test_series_model.dart';
 
+final testDetailProvider =
+    FutureProvider.family.autoDispose<Test, String>((ref, id) async {
+  final api = ApiService();
+  final response = await api.get('/api/tests/$id');
+  final data = response.data;
+
+  Map<String, dynamic> testData = {};
+  if (data is Map) {
+    if (data['data'] is Map) {
+      testData = Map<String, dynamic>.from(data['data']);
+    } else if (data['test'] is Map) {
+      testData = Map<String, dynamic>.from(data['test']);
+    } else {
+      testData = Map<String, dynamic>.from(data);
+    }
+  }
+
+  return Test.fromJson(testData);
+});
+
 class LiveTestScreen extends ConsumerStatefulWidget {
   final String testId;
-  
+
   const LiveTestScreen({super.key, required this.testId});
 
   @override
@@ -19,60 +41,57 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
   final Map<int, int?> _answers = {};
   Duration _remainingTime = const Duration(minutes: 60);
   bool _testStarted = false;
-
-  // Sample questions for demo
-  final List<Question> _questions = [
-    Question(
-      id: '1',
-      text: 'What is the value of acceleration due to gravity on Earth?',
-      options: [
-        Option(index: 0, text: '9.8 m/s²'),
-        Option(index: 1, text: '10.8 m/s²'),
-        Option(index: 2, text: '8.8 m/s²'),
-        Option(index: 3, text: '11.8 m/s²'),
-      ],
-      marks: 4,
-      negativeMarks: 1,
-    ),
-    Question(
-      id: '2',
-      text: 'Which of the following is a noble gas?',
-      options: [
-        Option(index: 0, text: 'Nitrogen'),
-        Option(index: 1, text: 'Oxygen'),
-        Option(index: 2, text: 'Helium'),
-        Option(index: 3, text: 'Hydrogen'),
-      ],
-      marks: 4,
-      negativeMarks: 1,
-    ),
-    Question(
-      id: '3',
-      text: 'What is the derivative of x²?',
-      options: [
-        Option(index: 0, text: 'x'),
-        Option(index: 1, text: '2x'),
-        Option(index: 2, text: 'x²'),
-        Option(index: 3, text: '2'),
-      ],
-      marks: 4,
-      negativeMarks: 1,
-    ),
-  ];
+  Timer? _timer;
+  Test? _activeTest;
+  int _testDurationMinutes = 60;
 
   @override
   Widget build(BuildContext context) {
-    if (!_testStarted) {
-      return _buildStartScreen();
+    final testAsync = ref.watch(testDetailProvider(widget.testId));
+
+    return testAsync.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        appBar: AppBar(title: const Text('Test Instructions')),
+        body: Center(child: Text('Failed to load test: $error')),
+      ),
+      data: (test) {
+        _activeTest = test;
+        if (!_testStarted) {
+          return _buildStartScreen(test);
+        }
+        return _buildTestScreen(test);
+      },
+    );
+  }
+
+  Widget _buildTestScreen(Test test) {
+    final questions = test.questions ?? const <Question>[];
+    if (questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Live Test')),
+        body: Center(
+          child: Text(
+            'No questions available for this test.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      );
     }
-    
+
+    if (_currentQuestion >= questions.length) {
+      _currentQuestion = 0;
+    }
+
     return WillPopScope(
       onWillPop: () async {
         return await _showExitDialog();
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Question ${_currentQuestion + 1}/${_questions.length}'),
+          title: Text('Question ${_currentQuestion + 1}/${questions.length}'),
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () async {
@@ -119,11 +138,11 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
           children: [
             // Progress bar
             LinearProgressIndicator(
-              value: (_currentQuestion + 1) / _questions.length,
+              value: (_currentQuestion + 1) / questions.length,
               backgroundColor: AppColors.grey200,
               valueColor: const AlwaysStoppedAnimation(AppColors.primary),
             ),
-            
+
             // Question content
             Expanded(
               child: SingleChildScrollView(
@@ -136,7 +155,8 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
@@ -152,7 +172,7 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                         Row(
                           children: [
                             Text(
-                              '+${_questions[_currentQuestion].marks ?? 4}',
+                              '+${questions[_currentQuestion].marks ?? 4}',
                               style: const TextStyle(
                                 color: AppColors.success,
                                 fontWeight: FontWeight.w600,
@@ -160,7 +180,7 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                             ),
                             const Text(' / '),
                             Text(
-                              '-${_questions[_currentQuestion].negativeMarks ?? 1}',
+                              '-${questions[_currentQuestion].negativeMarks ?? 1}',
                               style: const TextStyle(
                                 color: AppColors.error,
                                 fontWeight: FontWeight.w600,
@@ -171,22 +191,26 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // Question text
                     Text(
-                      _questions[_currentQuestion].text ?? '',
+                      questions[_currentQuestion].text ?? '',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        height: 1.5,
-                      ),
+                            height: 1.5,
+                          ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Options
-                    ..._questions[_currentQuestion].options.asMap().entries.map((entry) {
+                    ...questions[_currentQuestion]
+                        .options
+                        .asMap()
+                        .entries
+                        .map((entry) {
                       final index = entry.key;
                       final option = entry.value;
                       final isSelected = _answers[_currentQuestion] == index;
-                      
+
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -258,7 +282,7 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                 ),
               ),
             ),
-            
+
             // Navigation buttons
             Container(
               padding: const EdgeInsets.all(16),
@@ -290,16 +314,16 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                     flex: _currentQuestion > 0 ? 1 : 2,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_currentQuestion < _questions.length - 1) {
+                        if (_currentQuestion < questions.length - 1) {
                           setState(() {
                             _currentQuestion++;
                           });
                         } else {
-                          _submitTest();
+                          _submitTest(test);
                         }
                       },
                       child: Text(
-                        _currentQuestion < _questions.length - 1
+                        _currentQuestion < questions.length - 1
                             ? 'Next'
                             : 'Submit Test',
                       ),
@@ -314,7 +338,16 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
     );
   }
 
-  Widget _buildStartScreen() {
+  Widget _buildStartScreen(Test test) {
+    final durationMinutes = test.duration ?? 60;
+    final createdAt = test.createdAt;
+    final questions = test.questions ?? const <Question>[];
+    final totalMarks = questions.isEmpty
+        ? 0
+        : questions.fold<int>(
+            0,
+            (sum, q) => sum + (q.marks ?? 0),
+          );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Test Instructions'),
@@ -352,40 +385,52 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      _buildInfoChip(Icons.quiz, '${_questions.length} Questions'),
-                      _buildInfoChip(Icons.timer, '60 Minutes'),
-                      _buildInfoChip(Icons.star, '${_questions.length * 4} Marks'),
+                      _buildInfoChip(
+                          Icons.quiz, '${questions.length} Questions'),
+                      _buildInfoChip(Icons.timer, '$durationMinutes Minutes'),
+                      _buildInfoChip(Icons.star, '$totalMarks Marks'),
                     ],
                   ),
-
+                  if (createdAt != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      'Created: ${DateFormatter.formatDateTime(createdAt)}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Instructions
             Text(
               'Instructions',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            _buildInstructionItem('1', 'This test contains ${_questions.length} questions.'),
-            _buildInstructionItem('2', 'Total time allowed is 60 minutes.'),
+            _buildInstructionItem(
+                '1', 'This test contains ${questions.length} questions.'),
+            _buildInstructionItem(
+                '2', 'Total time allowed is $durationMinutes minutes.'),
             _buildInstructionItem('3', 'Each correct answer carries 4 marks.'),
-            _buildInstructionItem('4', 'Each wrong answer has 1 mark negative.'),
+            _buildInstructionItem(
+                '4', 'Each wrong answer has 1 mark negative.'),
             _buildInstructionItem('5', 'Unattempted questions carry no marks.'),
-            _buildInstructionItem('6', 'You can review and change answers before submission.'),
+            _buildInstructionItem(
+                '6', 'You can review and change answers before submission.'),
             const SizedBox(height: 32),
-            
+
             // Start button
             SizedBox(
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    _testStarted = true;
-                  });
+                  _startTest(durationMinutes);
                 },
                 child: const Text('Start Test'),
               ),
@@ -461,7 +506,8 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Exit Test?'),
-        content: const Text('Are you sure you want to exit? Your progress will be lost.'),
+        content: const Text(
+            'Are you sure you want to exit? Your progress will be lost.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -478,13 +524,140 @@ class _LiveTestScreenState extends ConsumerState<LiveTestScreen> {
     return result ?? false;
   }
 
-  void _submitTest() {
-    // Calculate score
-    int attempted = _answers.length;
-    int correct = 0; // Would calculate from correct answers
-    int score = correct * 4;
-    
-    // Navigate to results
-    context.go('/test-result/${widget.testId}');
+  void _startTest(int durationMinutes) {
+    _timer?.cancel();
+    setState(() {
+      _testStarted = true;
+      _testDurationMinutes = durationMinutes;
+      _remainingTime = Duration(minutes: durationMinutes);
+    });
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        final next = _remainingTime - const Duration(seconds: 1);
+        _remainingTime = next.isNegative ? Duration.zero : next;
+      });
+
+      if (_remainingTime.inSeconds <= 0) {
+        timer.cancel();
+        final test = _activeTest;
+        if (test != null) {
+          _submitTest(test);
+        }
+      }
+    });
+  }
+
+  void _submitTest(Test test) {
+    _timer?.cancel();
+    final questions = test.questions ?? const <Question>[];
+    final totalDurationSeconds = _testDurationMinutes * 60;
+    final timeSpentSeconds = totalDurationSeconds - _remainingTime.inSeconds;
+
+    int correct = 0;
+    int wrong = 0;
+    int attempted = 0;
+    int totalMarks = 0;
+    int score = 0;
+
+    for (var i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      final selected = _answers[i];
+      final correctIndex = _resolveCorrectIndex(q);
+      final positive = q.marks ?? 0;
+      final negative = q.negativeMarks ?? 0;
+      totalMarks += positive;
+
+      if (selected == null) {
+        continue;
+      }
+      attempted++;
+
+      if (correctIndex != null && selected == correctIndex) {
+        correct++;
+        score += positive;
+      } else {
+        wrong++;
+        score -= negative;
+      }
+    }
+
+    if (totalMarks == 0 && questions.isNotEmpty) {
+      totalMarks = questions.length * 4;
+    }
+    if (score < 0) score = 0;
+
+    final unattempted = questions.length - attempted;
+    final percentage =
+        totalMarks > 0 ? (score / totalMarks * 100).clamp(0, 100) : 0.0;
+    final accuracy =
+        attempted > 0 ? (correct / attempted * 100).clamp(0, 100) : 0.0;
+    final pace = _paceLabel(timeSpentSeconds, totalDurationSeconds);
+
+    final resultData = <String, dynamic>{
+      'testId': test.id,
+      'title': test.title ?? 'Test',
+      'score': score,
+      'totalMarks': totalMarks,
+      'correct': correct,
+      'wrong': wrong,
+      'unattempted': unattempted,
+      'percentage': percentage,
+      'accuracy': accuracy,
+      'pace': pace,
+      'timeSpentSeconds': timeSpentSeconds,
+      'totalDurationSeconds': totalDurationSeconds,
+    };
+
+    context.go(
+      '/test-result/${widget.testId}',
+      extra: resultData,
+    );
+  }
+
+  int? _resolveCorrectIndex(Question question) {
+    final value = question.correctOption ?? question.correctOptions;
+    if (value is int) return value;
+    if (value is String) return _labelToIndex(value);
+    if (value is List && value.isNotEmpty) {
+      final first = value.first;
+      if (first is int) return first;
+      if (first is String) return _labelToIndex(first);
+    }
+    return null;
+  }
+
+  int? _labelToIndex(String label) {
+    switch (label.trim().toUpperCase()) {
+      case 'A':
+        return 0;
+      case 'B':
+        return 1;
+      case 'C':
+        return 2;
+      case 'D':
+        return 3;
+      default:
+        return null;
+    }
+  }
+
+  String _paceLabel(int spentSeconds, int totalSeconds) {
+    if (totalSeconds <= 0) return '—';
+    final ratio = spentSeconds / totalSeconds;
+    if (ratio <= 0.5) return 'Fast';
+    if (ratio <= 0.85) return 'Average';
+    return 'Slow';
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }

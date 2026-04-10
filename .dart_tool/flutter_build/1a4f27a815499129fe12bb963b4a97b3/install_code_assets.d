@@ -1,0 +1,1 @@
+ D:\\App\\Faculty\ Pedia\\faculty-pedIa-app\\.dart_tool\\flutter_build\\1a4f27a815499129fe12bb963b4a97b3\\native_assets.json: 

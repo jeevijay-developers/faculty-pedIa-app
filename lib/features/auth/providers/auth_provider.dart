@@ -97,30 +97,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Try student login first
-      try {
-        final response = await _apiService.post(
-          '/api/auth/login-student',
-          data: {'email': email, 'password': password},
-        );
+      final response = await _apiService.post(
+        '/api/auth/login-student',
+        data: {'email': email, 'password': password},
+      );
 
-        return _handleLoginResponse(response.data, 'student');
-      } catch (studentError) {
-        // If student login fails with 400/401, try educator login
-        if (_isAuthError(studentError)) {
-          try {
-            final response = await _apiService.post(
-              '/api/auth/ed-login',
-              data: {'email': email, 'password': password},
-            );
-
-            return _handleLoginResponse(response.data, 'educator');
-          } catch (educatorError) {
-            throw educatorError;
-          }
-        }
-        throw studentError;
-      }
+      return _handleLoginResponse(response.data, 'student');
     } catch (e) {
       final errorMessage = _getErrorMessage(e);
       state = state.copyWith(
@@ -181,6 +163,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> signupStudent({
     required String name,
+    required String username,
     required String email,
     required String password,
     required String mobileNumber,
@@ -190,15 +173,74 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final response = await _apiService.post(
-        '/api/auth/signup-student',
+      final payload = {
+        'name': name,
+        'username': username,
+        'email': email,
+        'password': password,
+        'mobileNumber': mobileNumber,
+        if (specialization != null) 'specialization': specialization,
+        if (academicClass != null) 'class': academicClass,
+      };
+
+      try {
+        await _apiService.post('/api/auth/student/signup', data: payload);
+      } catch (e) {
+        // Fallback to legacy endpoint if the new route is not available.
+        await _apiService.post('/api/auth/signup-student', data: payload);
+      }
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      final errorMessage = _getErrorMessage(e);
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmailOtp({
+    required String email,
+    required String otp,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await _apiService.post(
+        '/api/auth/verify-email',
         data: {
-          'name': name,
           'email': email,
-          'password': password,
-          'mobileNumber': mobileNumber,
-          if (specialization != null) 'specialization': specialization,
-          if (academicClass != null) 'class': academicClass,
+          'otp': otp,
+          'role': 'student',
+        },
+      );
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      final errorMessage = _getErrorMessage(e);
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> resendVerificationOtp({
+    required String email,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await _apiService.post(
+        '/api/auth/resend-verification-otp',
+        data: {
+          'email': email,
+          'role': 'student',
         },
       );
 

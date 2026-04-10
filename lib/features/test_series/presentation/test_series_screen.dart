@@ -142,7 +142,12 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
               child: seriesAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(16),
-                  child: ShimmerList(itemCount: 5, itemHeight: 180),
+                  child: ShimmerList(
+                    itemCount: 5,
+                    itemHeight: 180,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  ),
                 ),
                 error: (e, _) => Padding(
                   padding: const EdgeInsets.all(16),

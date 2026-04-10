@@ -6,6 +6,7 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/verify_email_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
 import '../../features/educators/presentation/educators_screen.dart';
@@ -29,12 +30,16 @@ import '../../features/webinars/presentation/webinar_details_screen.dart';
 import '../../features/dashboard/student_dashboard.dart';
 import '../../features/dashboard/student_courses.dart';
 import '../../features/dashboard/test_series.dart';
+import '../../features/dashboard/following_tab_screen.dart';
 import '../../features/coursePanel/course_panel.dart';
 import '../../features/coursePanel/video_player_screen.dart';
 import '../../features/coursePanel/pdf_viewer_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/dashboard/message_tab_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/dashboard/result_tab.dart';
+import '../../features/dashboard/webinar_tab.dart';
 import '../../features/post/all_posts.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
@@ -85,6 +90,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) {
+          final email = state.extra is String
+              ? state.extra as String
+              : state.uri.queryParameters['email'] ?? '';
+          return VerifyEmailScreen(email: email);
+        },
+      ),
 
       // Main Shell with Bottom Navigation
       ShellRoute(
@@ -105,10 +119,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: '/student-courses',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const StudentCoursesScreen(),
+            ),
+          ),
+          GoRoute(
             path: '/dashboard/test-series',
             pageBuilder: (context, state) => NoTransitionPage(
               key: UniqueKey(),
               child: const StudentTestSeriesScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dashboard/webinars',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const WebinarTabScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/messages',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const MessageTabScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/following',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const FollowingTabScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/results',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: ResultsTabScreen(
+                resultData: state.extra is Map<String, dynamic>
+                    ? state.extra as Map<String, dynamic>
+                    : null,
+              ),
             ),
           ),
           GoRoute(
@@ -147,10 +200,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/courses',
         builder: (context, state) => const CoursesScreen(),
-      ),
-      GoRoute(
-        path: '/student-courses',
-        builder: (context, state) => const StudentCoursesScreen(),
       ),
       GoRoute(
         path: '/course/:id',
@@ -258,8 +307,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/test-result/:id',
         builder: (context, state) => TestResultScreen(
           resultId: state.pathParameters['id']!,
+          resultData: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
         ),
       ),
+
+      // Results
 
       // Webinars
       GoRoute(
@@ -284,6 +338,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
       ),
+
+      // Messages
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(

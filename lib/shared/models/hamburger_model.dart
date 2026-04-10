@@ -24,10 +24,11 @@ class HamburgerDrawer extends ConsumerWidget {
     _DrawerItem(Icons.assignment_rounded, 'Test Series',
         '/dashboard/test-series', false),
     _DrawerItem(Icons.live_tv_rounded, 'Live Classes', null, false),
-    _DrawerItem(Icons.videocam_rounded, 'Webinars', null, false),
-    _DrawerItem(Icons.task_alt_rounded, 'Results', null, false),
-    _DrawerItem(Icons.chat_bubble_rounded, 'Messages', null, false),
-    _DrawerItem(Icons.people_alt_rounded, 'Following', '/educators', false),
+    _DrawerItem(
+        Icons.videocam_rounded, 'Webinars', '/dashboard/webinars', false),
+    _DrawerItem(Icons.task_alt_rounded, 'Results', '/results', false),
+    _DrawerItem(Icons.chat_bubble_rounded, 'Messages', '/messages', false),
+    _DrawerItem(Icons.people_alt_rounded, 'Following', '/following', false),
   ];
 
   @override
@@ -39,7 +40,7 @@ class HamburgerDrawer extends ConsumerWidget {
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.82,
-      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      backgroundColor: kPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(28),
@@ -52,34 +53,46 @@ class HamburgerDrawer extends ConsumerWidget {
             // ── Header ─────────────────────────────────────────────────────
             _buildHeader(context, authState, isDark),
 
-            // ── Menu ───────────────────────────────────────────────────────
+            // ── Menu + Footer Panel ────────────────────────────────────────
             Expanded(
-              child: ListView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                children: [
-                  _sectionLabel('Main Menu', isDark),
-                  const SizedBox(height: 4),
-                  ...mainItems.map(
-                    (item) => _ModernDrawerTile(
-                      item: item,
-                      isDark: isDark,
-                      onTap: () => _navigate(context, item),
-                    ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(28),
                   ),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        children: [
+                          _sectionLabel('Main Menu', isDark),
+                          const SizedBox(height: 4),
+                          ...mainItems.map(
+                            (item) => _ModernDrawerTile(
+                              item: item,
+                              isDark: isDark,
+                              onTap: () => _navigate(context, item),
+                            ),
+                          ),
 
-                  const SizedBox(height: 8),
-                  _divider(isDark),
-                  const SizedBox(height: 8),
+                          const SizedBox(height: 8),
+                          _divider(isDark),
+                          const SizedBox(height: 8),
 
-                  // Logout
-                  _LogoutTile(isDark: isDark, ref: ref),
-                ],
+                          // Logout
+                          _LogoutTile(isDark: isDark, ref: ref),
+                        ],
+                      ),
+                    ),
+                    _buildFooter(isDark),
+                  ],
+                ),
               ),
             ),
-
-            // ── Footer ─────────────────────────────────────────────────────
-            _buildFooter(isDark),
           ],
         ),
       ),

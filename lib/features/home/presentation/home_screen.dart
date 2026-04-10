@@ -40,7 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
         child: CustomScrollView(
           slivers: [
-            _buildSliverAppBar(context, isDark, unreadAsync),
+            _buildSliverAppBar(context, isDark, unreadAsync, authState),
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     bool isDark,
     AsyncValue<int> unreadAsync,
+    AuthState authState,
   ) {
+    final imageUrl = authState.user?.imageUrl;
     return SliverAppBar(
       floating: true,
       snap: true,
@@ -85,32 +87,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       titleSpacing: 16,
       title: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-            ),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: kPrimaryBg,
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? ClipOval(
+                    child: AppNetworkImage(
+                      imageUrl: imageUrl,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Text(
+                    (authState.user?.initials ?? 'S').toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: kPrimary,
+                    ),
+                  ),
           ),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Faculty Pedia',
+              Text(
+                'WELCOME BACK',
                 style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  letterSpacing: -0.3,
+                  fontSize: 10,
+                  color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
                 ),
               ),
               Text(
-                'Learn. Grow. Excel.',
+                authState.user?.displayName ?? 'Student',
                 style: TextStyle(
-                  fontSize: 11,
-                  color: kPrimary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  letterSpacing: -0.2,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
             ],
@@ -128,8 +144,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(width: 4),
         _appBarIcon(
-          Icons.settings_outlined,
-          onTap: () => context.push('/settings'),
+          Icons.search_rounded,
+          onTap: () {},
         ),
         const SizedBox(width: 8),
       ],
@@ -397,11 +413,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Icons.school_rounded,
           [const Color(0xFF059669), const Color(0xFF047857)],
           '/exam-content/cbse'),
-      _ExamData(
-          'UPSC',
-          Icons.account_balance_rounded,
-          [const Color(0xFFD97706), const Color(0xFFB45309)],
-          '/exam-content/upsc'),
     ];
 
     return SizedBox(

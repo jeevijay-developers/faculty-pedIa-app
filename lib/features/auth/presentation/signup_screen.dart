@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/app_widgets.dart';
 import '../../../core/utils/snackbar_utils.dart';
 import '../providers/auth_provider.dart';
 
@@ -33,7 +32,6 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen>
     with TickerProviderStateMixin {
-  late TabController _tabController;
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -41,7 +39,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 550));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
@@ -52,7 +49,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _fadeCtrl.dispose();
     super.dispose();
   }
@@ -79,20 +75,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
                 const SizedBox(height: 20),
 
-                // ── Tab bar ─────────────────────────────────────────────
-                _buildTabBar(isDark),
-
+                // ── Student signup ──────────────────────────────────────
                 const SizedBox(height: 4),
-
-                // ── Tab content ─────────────────────────────────────────
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _StudentSignupForm(isDark: isDark),
-                      _EducatorSignupForm(isDark: isDark),
-                    ],
-                  ),
+                  child: _StudentSignupForm(isDark: isDark),
                 ),
               ],
             ),
@@ -141,53 +127,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           ),
           const SizedBox(height: 5),
           Text(
-            'Join thousands of learners & educators',
+            'Join thousands of learners',
             style: TextStyle(
               fontSize: 14,
               color: isDark ? kText2Dark : kText2Light,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kDivLight,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: TabBar(
-          controller: _tabController,
-          indicator: BoxDecoration(
-            color: kPrimary,
-            borderRadius: BorderRadius.circular(11),
-            boxShadow: [
-              BoxShadow(
-                color: kPrimary.withOpacity(0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: Colors.transparent,
-          labelColor: Colors.white,
-          unselectedLabelColor: isDark ? kText2Dark : kText2Light,
-          labelStyle:
-              const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-          unselectedLabelStyle:
-              const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          padding: const EdgeInsets.all(4),
-          tabs: const [
-            Tab(text: 'Student'),
-            Tab(text: 'Educator'),
-          ],
-        ),
       ),
     );
   }
@@ -389,6 +335,7 @@ class _StudentSignupForm extends ConsumerStatefulWidget {
 class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _usernameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
@@ -413,6 +360,7 @@ class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _usernameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
@@ -422,17 +370,19 @@ class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+    final email = _emailCtrl.text.trim();
     final success = await ref.read(authStateProvider.notifier).signupStudent(
           name: _nameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
+          username: _usernameCtrl.text.trim(),
+          email: email,
           password: _passwordCtrl.text,
           mobileNumber: _mobileCtrl.text.trim(),
           specialization: _selectedSpec,
           academicClass: _selectedClass,
         );
     if (success && mounted) {
-      AppSnackbar.success(context, 'Account created! Please login.');
-      context.go('/login');
+      AppSnackbar.success(context, 'OTP sent to your email.');
+      context.push('/verify-email', extra: email);
     }
   }
 
@@ -480,6 +430,28 @@ class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
                 if (v == null || v.isEmpty) return 'Please enter your email';
                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v))
                   return 'Invalid email address';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Username
+            _fieldLabel('Username', isDark),
+            _buildField(
+              controller: _usernameCtrl,
+              hint: 'e.g. aman_verma',
+              icon: Icons.alternate_email_rounded,
+              isDark: isDark,
+              textInputAction: TextInputAction.next,
+              validator: (v) {
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return 'Please enter a username';
+                if (value.length < 3 || value.length > 30) {
+                  return 'Username must be 3-30 characters';
+                }
+                if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
+                  return 'Use lowercase letters, numbers, and underscores';
+                }
                 return null;
               },
             ),
@@ -593,272 +565,6 @@ class _StudentSignupFormState extends ConsumerState<_StudentSignupForm> {
             // CTA
             _buildCTAButton(
               text: 'Create Student Account',
-              isLoading: authState.isLoading,
-              onTap: _handleSignup,
-            ),
-            const SizedBox(height: 20),
-
-            _buildLoginRow(context, isDark),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Educator signup form ───────────────────────────────────────────────────────
-class _EducatorSignupForm extends ConsumerStatefulWidget {
-  final bool isDark;
-  const _EducatorSignupForm({required this.isDark});
-
-  @override
-  ConsumerState<_EducatorSignupForm> createState() =>
-      _EducatorSignupFormState();
-}
-
-class _EducatorSignupFormState extends ConsumerState<_EducatorSignupForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-  final _mobileCtrl = TextEditingController();
-  final _bioCtrl = TextEditingController();
-  bool _obscurePass = true;
-  final List<String> _selectedSubjects = [];
-
-  static const _subjects = [
-    'Physics',
-    'Chemistry',
-    'Mathematics',
-    'Biology',
-    'English',
-    'Hindi',
-    'Computer Science',
-  ];
-
-  @override
-  void dispose() {
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
-    _mobileCtrl.dispose();
-    _bioCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSignup() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedSubjects.isEmpty) {
-      AppSnackbar.warning(context, 'Please select at least one subject');
-      return;
-    }
-    final success = await ref.read(authStateProvider.notifier).signupEducator(
-          firstName: _firstNameCtrl.text.trim(),
-          lastName: _lastNameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-          mobileNumber: _mobileCtrl.text.trim(),
-          subject: _selectedSubjects,
-          bio: _bioCtrl.text.trim().isNotEmpty ? _bioCtrl.text.trim() : null,
-        );
-    if (success && mounted) {
-      AppSnackbar.success(context, 'Educator account created! Please login.');
-      context.go('/login');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
-    final isDark = widget.isDark;
-
-    ref.listen<AuthState>(authStateProvider, (prev, next) {
-      if (next.error != null && prev?.error != next.error) {
-        AppSnackbar.error(context, next.error!);
-      }
-    });
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // First + Last name
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _fieldLabel('First Name', isDark),
-                      _buildField(
-                        controller: _firstNameCtrl,
-                        hint: 'First name',
-                        icon: Icons.person_outline_rounded,
-                        isDark: isDark,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _fieldLabel('Last Name', isDark),
-                      _buildField(
-                        controller: _lastNameCtrl,
-                        hint: 'Last name',
-                        icon: Icons.person_outline_rounded,
-                        isDark: isDark,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Email
-            _fieldLabel('Email Address', isDark),
-            _buildField(
-              controller: _emailCtrl,
-              hint: 'Enter your email',
-              icon: Icons.email_outlined,
-              isDark: isDark,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Please enter email';
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v))
-                  return 'Invalid email address';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Mobile
-            _fieldLabel('Mobile Number', isDark),
-            _buildField(
-              controller: _mobileCtrl,
-              hint: 'Enter mobile number',
-              icon: Icons.phone_outlined,
-              isDark: isDark,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.next,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-            ),
-            const SizedBox(height: 16),
-
-            // Subjects
-            _fieldLabel('Subjects', isDark),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _subjects.map((sub) {
-                final selected = _selectedSubjects.contains(sub);
-                return GestureDetector(
-                  onTap: () => setState(() {
-                    selected
-                        ? _selectedSubjects.remove(sub)
-                        : _selectedSubjects.add(sub);
-                  }),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? kPrimary
-                          : (isDark ? kSurfaceDark : kSurface),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: selected
-                            ? kPrimary
-                            : (isDark
-                                ? Colors.white.withOpacity(0.08)
-                                : kDivLight),
-                        width: selected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (selected) ...[
-                          const Icon(Icons.check_rounded,
-                              size: 13, color: Colors.white),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          sub,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: selected
-                                ? Colors.white
-                                : (isDark ? kText2Dark : kText2Light),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-
-            // Bio
-            _fieldLabel('Bio (Optional)', isDark),
-            _buildField(
-              controller: _bioCtrl,
-              hint: 'Tell students about yourself…',
-              icon: Icons.info_outline_rounded,
-              isDark: isDark,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-
-            // Password
-            _fieldLabel('Password', isDark),
-            _buildField(
-              controller: _passwordCtrl,
-              hint: 'Create a password',
-              icon: Icons.lock_outline_rounded,
-              isDark: isDark,
-              obscureText: _obscurePass,
-              textInputAction: TextInputAction.done,
-              suffixIcon: GestureDetector(
-                onTap: () => setState(() => _obscurePass = !_obscurePass),
-                child: Icon(
-                  _obscurePass
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 20,
-                  color: isDark ? kText2Dark : kText3Light,
-                ),
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Required';
-                if (v.length < 6) return 'Min 6 characters required';
-                return null;
-              },
-            ),
-            const SizedBox(height: 28),
-
-            // CTA
-            _buildCTAButton(
-              text: 'Create Educator Account',
               isLoading: authState.isLoading,
               onTap: _handleSignup,
             ),

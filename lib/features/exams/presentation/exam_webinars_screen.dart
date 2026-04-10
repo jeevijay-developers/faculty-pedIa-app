@@ -128,7 +128,12 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
               child: webinarsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(16),
-                  child: ShimmerList(itemCount: 4, itemHeight: 200),
+                  child: ShimmerList(
+                    itemCount: 4,
+                    itemHeight: 200,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  ),
                 ),
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(16),

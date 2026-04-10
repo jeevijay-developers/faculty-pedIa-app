@@ -8,6 +8,24 @@ import '../../shared/models/hamburger_model.dart';
 import '../../shared/widgets/state_widgets.dart';
 import '../auth/providers/auth_provider.dart';
 
+// ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
+const kPrimary = Color(0xFF2563EB);
+const kPrimaryDark = Color(0xFF1D4ED8);
+const kPrimaryBg = Color(0xFFEFF6FF);
+const kPrimaryMid = Color(0xFFBFDBFE);
+
+const kSurface = Colors.white;
+const kSurfaceDark = Color(0xFF1E293B);
+const kBgLight = Color(0xFFF8FAFC);
+const kBgDark = Color(0xFF0F172A);
+const kText1Light = Color(0xFF0F172A);
+const kText2Light = Color(0xFF64748B);
+const kText3Light = Color(0xFF94A3B8);
+const kText1Dark = Colors.white;
+const kText2Dark = Color(0xFF94A3B8);
+const kDivLight = Color(0xFFF1F5F9);
+
+// ── Model ──────────────────────────────────────────────────────────────────────
 class StudentTestSeriesItem {
   final TestSeries series;
   final int totalTests;
@@ -20,11 +38,11 @@ class StudentTestSeriesItem {
   });
 }
 
+// ── Provider ───────────────────────────────────────────────────────────────────
 final studentTestSeriesProvider =
     FutureProvider.autoDispose<List<StudentTestSeriesItem>>((ref) async {
-  final authState = ref.watch(authStateProvider);
-  final studentId = authState.student?.id;
-
+  final auth = ref.watch(authStateProvider);
+  final studentId = auth.student?.id;
   if (studentId == null || studentId.isEmpty) {
     throw Exception('Student not found');
   }
@@ -38,7 +56,7 @@ final studentTestSeriesProvider =
       ? payload['data'] as Map<String, dynamic>
       : payload;
 
-  final rawSeries = (data['testSeries'] ?? data['tests']);
+  final rawSeries = data['testSeries'] ?? data['tests'];
   if (rawSeries is! List) return const [];
 
   final ids = <String>{};
@@ -52,352 +70,649 @@ final studentTestSeriesProvider =
       }
     }
   }
-
   if (ids.isEmpty) return const [];
 
   final items = await Future.wait(ids.map((id) async {
-    final res = await api.get('/api/test-series/$id');
-    final payload = res.data is Map<String, dynamic>
-        ? res.data as Map<String, dynamic>
+    final r = await api.get('/api/test-series/$id');
+    final p = r.data is Map<String, dynamic>
+        ? r.data as Map<String, dynamic>
         : <String, dynamic>{};
 
-    Map<String, dynamic> seriesData = {};
-    if (payload['testSeries'] is Map) {
-      seriesData = Map<String, dynamic>.from(payload['testSeries']);
-    } else if (payload['data'] is Map) {
-      final nested = payload['data'] as Map;
-      if (nested['testSeries'] is Map) {
-        seriesData = Map<String, dynamic>.from(nested['testSeries']);
-      } else {
-        seriesData = Map<String, dynamic>.from(nested);
-      }
+    Map<String, dynamic> sd = {};
+    if (p['testSeries'] is Map) {
+      sd = Map<String, dynamic>.from(p['testSeries']);
+    } else if (p['data'] is Map) {
+      final nested = p['data'] as Map;
+      sd = nested['testSeries'] is Map
+          ? Map<String, dynamic>.from(nested['testSeries'])
+          : Map<String, dynamic>.from(nested);
     } else {
-      seriesData = Map<String, dynamic>.from(payload);
+      sd = Map<String, dynamic>.from(p);
     }
 
-    final series = TestSeries.fromJson(seriesData);
-
-    final testsRes = await api.get('/api/tests/test-series/$id',
+    final series = TestSeries.fromJson(sd);
+    final tr = await api.get('/api/tests/test-series/$id',
         queryParameters: const {'limit': 200});
-    final testsPayload = testsRes.data is Map<String, dynamic>
-        ? testsRes.data as Map<String, dynamic>
+    final tp = tr.data is Map<String, dynamic>
+        ? tr.data as Map<String, dynamic>
         : <String, dynamic>{};
-    final testsData = testsPayload['data'] is Map<String, dynamic>
-        ? testsPayload['data'] as Map<String, dynamic>
+    final td = tp['data'] is Map<String, dynamic>
+        ? tp['data'] as Map<String, dynamic>
         : <String, dynamic>{};
-    final rawTests = (testsData['tests'] ?? testsPayload['tests']) is List
-        ? (testsData['tests'] ?? testsPayload['tests']) as List
+    final rawTests = (td['tests'] ?? tp['tests']) is List
+        ? (td['tests'] ?? tp['tests']) as List
         : const <dynamic>[];
 
     final apiTests = rawTests
         .whereType<Map<String, dynamic>>()
         .map(Test.fromJson)
-        .where((test) => test.id.isNotEmpty)
+        .where((t) => t.id.isNotEmpty)
         .toList();
-
-    final seriesTests = (series.tests ?? const <Test>[])
-        .where((test) => test.id.isNotEmpty)
-        .toList();
-
+    final seriesTests =
+        (series.tests ?? const <Test>[]).where((t) => t.id.isNotEmpty).toList();
     final tests = apiTests.isNotEmpty ? apiTests : seriesTests;
-    final totalTests =
-        tests.isNotEmpty ? tests.length : (series.totalTests ?? 0);
 
     return StudentTestSeriesItem(
       series: series,
-      totalTests: totalTests,
+      totalTests: tests.isNotEmpty ? tests.length : (series.totalTests ?? 0),
       tests: tests,
     );
   }));
 
-  return items.where((item) => item.series.id.isNotEmpty).toList();
+  return items.where((i) => i.series.id.isNotEmpty).toList();
 });
 
+// ── Screen ─────────────────────────────────────────────────────────────────────
 class StudentTestSeriesScreen extends ConsumerWidget {
   const StudentTestSeriesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
-    final displayName = authState.user?.displayName ?? 'Student';
-    final testSeriesAsync = ref.watch(studentTestSeriesProvider);
+    final auth = ref.watch(authStateProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final firstName = auth.user?.displayName?.split(' ').first ?? 'Student';
+    final seriesAsync = ref.watch(studentTestSeriesProvider);
+    final totalCount =
+        seriesAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
 
     return Scaffold(
+      backgroundColor: isDark ? kBgDark : kBgLight,
       drawer: const HamburgerDrawer(),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: AppColors.grey900),
-        title: const Text(
-          'Academic Atelier',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-      ),
-      body: Container(
-        color: const Color(0xFFF6F4FF),
-        child: testSeriesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => ErrorStateWidget(
-            message: error.toString(),
-            onRetry: () => ref.invalidate(studentTestSeriesProvider),
-          ),
-          data: (items) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(studentTestSeriesProvider);
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back, $displayName 👋',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.grey900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Ready to continue your learning journey today?',
-                      style: TextStyle(color: AppColors.grey600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 16),
-                    if (items.isEmpty)
-                      const EmptyStateWidget(
-                        icon: Icons.assignment_outlined,
-                        title: 'No test series yet',
-                        subtitle:
-                            'Enroll in a test series to track your progress here.',
-                      )
-                    else
-                      ...items.map((item) => _TestSeriesCard(item: item)),
-                  ],
+      body: RefreshIndicator(
+        color: kPrimary,
+        onRefresh: () async => ref.invalidate(studentTestSeriesProvider),
+        child: CustomScrollView(
+          slivers: [
+            // ── AppBar ──────────────────────────────────────────────
+            _buildSliverAppBar(context, isDark, firstName, totalCount),
+
+            SliverToBoxAdapter(
+              child: seriesAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child:
+                      Center(child: CircularProgressIndicator(color: kPrimary)),
                 ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _TestSeriesCard extends StatelessWidget {
-  final StudentTestSeriesItem item;
-
-  const _TestSeriesCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final series = item.series;
-    final tests = item.tests;
-    final hasTests = tests.isNotEmpty;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFE8EAF6)),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: true,
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(top: 14),
-          trailing: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F2F8),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.keyboard_arrow_up_rounded,
-              color: AppColors.grey700,
-            ),
-          ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                series.title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.grey900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                series.description?.isNotEmpty == true
-                    ? series.description!
-                    : 'Comprehensive test series to boost your preparation',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.grey600,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(Icons.menu_book_rounded,
-                      size: 14, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${item.totalTests} tests',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.grey700,
-                      fontWeight: FontWeight.w600,
-                    ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ErrorStateWidget(
+                    message: e.toString(),
+                    onRetry: () => ref.invalidate(studentTestSeriesProvider),
                   ),
-                ],
+                ),
+                data: (items) {
+                  if (items.isEmpty) return _emptyWidget(isDark);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // count strip
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                        child: Text(
+                          '${items.length} test series enrolled',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? kText2Dark : kText2Light,
+                          ),
+                        ),
+                      ),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                        itemCount: items.length,
+                        itemBuilder: (_, i) => _TestSeriesCard(
+                          item: items[i],
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ],
-          ),
-          children: [
-            if (!hasTests)
-              _EmptyTestsNote(seriesId: series.id)
-            else
-              Column(
-                children:
-                    tests.map((test) => _SeriesTestCard(test: test)).toList(),
-              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+  // ── Sliver AppBar ─────────────────────────────────────────────────────────
+  SliverAppBar _buildSliverAppBar(
+    BuildContext context,
+    bool isDark,
+    String firstName,
+    int count,
+  ) {
+    return SliverAppBar(
+      expandedHeight: 148,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: kPrimary,
+      surfaceTintColor: Colors.transparent,
+      leading: Builder(
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.all(8),
+          child: GestureDetector(
+            onTap: () => Scaffold.of(ctx).openDrawer(),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child:
+                  const Icon(Icons.menu_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        ),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        background: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [kPrimary, kPrimaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            Positioned(
+              right: -40,
+              top: -40,
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 22,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MY TEST SERIES',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.55),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Hello, $firstName 👋',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ready to ace your next test?',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Empty ─────────────────────────────────────────────────────────────────
+  Widget _emptyWidget(bool isDark) => Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Column(children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+                color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+            child: const Icon(Icons.assignment_outlined,
+                color: kPrimary, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text('No test series yet',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text('Enroll in a test series to track your progress here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? kText2Dark : kText3Light,
+              )),
+        ]),
+      );
 }
 
-class _SeriesTestCard extends StatelessWidget {
-  final Test test;
+// ── Test series card ───────────────────────────────────────────────────────────
+class _TestSeriesCard extends StatefulWidget {
+  final StudentTestSeriesItem item;
+  final bool isDark;
+  const _TestSeriesCard({required this.item, required this.isDark});
 
-  const _SeriesTestCard({required this.test});
+  @override
+  State<_TestSeriesCard> createState() => _TestSeriesCardState();
+}
+
+class _TestSeriesCardState extends State<_TestSeriesCard> {
+  bool _expanded = true;
 
   @override
   Widget build(BuildContext context) {
-    final title = test.title?.isNotEmpty == true ? test.title! : 'Test';
-    final subtitle = test.description?.isNotEmpty == true
-        ? test.description!
-        : 'Any Student can give this test.';
+    final series = widget.item.series;
+    final tests = widget.item.tests;
+    final hasTests = tests.isNotEmpty;
+    final isDark = widget.isDark;
+    final desc = series.description?.isNotEmpty == true
+        ? series.description!
+        : 'Comprehensive test series to boost your preparation.';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE6E8F0)),
+        color: isDark ? kSurfaceDark : kSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.18 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
+          // ── Header ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.grey900,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // icon tile
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : kPrimaryBg,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: kPrimaryMid),
+                      ),
+                      child: const Icon(Icons.assignment_rounded,
+                          color: kPrimary, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            series.title,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              color: isDark ? kText1Dark : kText1Light,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            desc,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.5,
+                              color: isDark ? kText2Dark : kText2Light,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // expand toggle
+                    GestureDetector(
+                      onTap: () => setState(() => _expanded = !_expanded),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.06)
+                              : kPrimaryBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: AnimatedRotation(
+                          duration: const Duration(milliseconds: 250),
+                          turns: _expanded ? 0.0 : 0.5,
+                          child: const Icon(
+                            Icons.keyboard_arrow_up_rounded,
+                            color: kPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.grey600,
-                  ),
+
+                const SizedBox(height: 12),
+
+                // stats row
+                Row(
+                  children: [
+                    _chip(Icons.quiz_rounded, '${widget.item.totalTests} Tests',
+                        isDark),
+                    const SizedBox(width: 12),
+                    if (series.subject.isNotEmpty)
+                      _chip(Icons.menu_book_rounded, series.subject.first,
+                          isDark),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: test.id.isEmpty
-                ? null
-                : () => context.push('/live-test/${test.id}'),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              backgroundColor: const Color(0xFF16A34A),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Start Test',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
+
+          // ── Expanded tests ───────────────────────────────────────────
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+            child: _expanded
+                ? Column(
+                    children: [
+                      Divider(
+                        height: 1,
+                        color:
+                            isDark ? Colors.white.withOpacity(0.07) : kDivLight,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                        child: hasTests
+                            ? Column(
+                                children: tests
+                                    .map((t) => _TestRow(
+                                          test: t,
+                                          isDark: isDark,
+                                        ))
+                                    .toList(),
+                              )
+                            : _EmptyNote(
+                                seriesId: series.id,
+                                isDark: isDark,
+                              ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
     );
   }
+
+  Widget _chip(IconData icon, String label, bool isDark) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: isDark ? kText2Dark : kText3Light),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isDark ? kText2Dark : kText2Light,
+            ),
+          ),
+        ],
+      );
 }
 
-class _EmptyTestsNote extends StatelessWidget {
-  final String seriesId;
+// ── Individual test row ────────────────────────────────────────────────────────
+class _TestRow extends StatefulWidget {
+  final Test test;
+  final bool isDark;
+  const _TestRow({required this.test, required this.isDark});
 
-  const _EmptyTestsNote({required this.seriesId});
+  @override
+  State<_TestRow> createState() => _TestRowState();
+}
+
+class _TestRowState extends State<_TestRow>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 110));
+    _scale = Tween<double>(begin: 1.0, end: 0.97)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.test;
+    final isDark = widget.isDark;
+    final title = t.title?.isNotEmpty == true ? t.title! : 'Test';
+    final sub = t.description?.isNotEmpty == true
+        ? t.description!
+        : 'Any student can attempt this test.';
+
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapCancel: () => _ctrl.reverse(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        if (t.id.isNotEmpty) context.push('/live-test/${t.id}');
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) =>
+            Transform.scale(scale: _scale.value, child: child),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? kBgDark : kBgLight,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+            ),
+          ),
+          child: Row(
+            children: [
+              // test number badge
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child:
+                    const Icon(Icons.quiz_rounded, color: kPrimary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? kText1Dark : kText1Light,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      sub,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        color: isDark ? kText2Dark : kText2Light,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Start button
+              GestureDetector(
+                onTap: t.id.isEmpty
+                    ? null
+                    : () => context.push('/live-test/${t.id}'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: t.id.isNotEmpty
+                        ? kPrimary
+                        : (isDark ? Colors.white.withOpacity(0.06) : kDivLight),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: t.id.isNotEmpty
+                        ? [
+                            BoxShadow(
+                              color: kPrimary.withOpacity(0.28),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.play_arrow_rounded,
+                        color: t.id.isNotEmpty ? Colors.white : kText3Light,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Start',
+                        style: TextStyle(
+                          color: t.id.isNotEmpty ? Colors.white : kText3Light,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty note ─────────────────────────────────────────────────────────────────
+class _EmptyNote extends StatelessWidget {
+  final String seriesId;
+  final bool isDark;
+  const _EmptyNote({required this.seriesId, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F7FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE8EAF6)),
+        color: isDark ? kBgDark : kBgLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.grey500),
-          const SizedBox(width: 8),
+          const Icon(Icons.info_outline_rounded, size: 18, color: kPrimary),
+          const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'No tests are available in this series yet.',
-              style: TextStyle(fontSize: 12, color: AppColors.grey600),
+              'No tests available in this series yet.',
+              style: TextStyle(
+                fontSize: 12,
+                color: kText2Light,
+              ),
             ),
           ),
-          TextButton(
-            onPressed: () => context.push('/test-series/$seriesId'),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              foregroundColor: AppColors.primary,
-            ),
-            child: const Text(
-              'Details',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          GestureDetector(
+            onTap: () => context.push('/test-series/$seriesId'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: kPrimaryBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kPrimaryMid),
+              ),
+              child: const Text(
+                'Details',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: kPrimary,
+                ),
+              ),
             ),
           ),
         ],

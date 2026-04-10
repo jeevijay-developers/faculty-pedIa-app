@@ -7,7 +7,7 @@ class AppShimmer extends StatelessWidget {
   final double? height;
   final BorderRadius? borderRadius;
   final Widget? child;
-  
+
   const AppShimmer({
     super.key,
     this.width,
@@ -19,18 +19,19 @@ class AppShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Shimmer.fromColors(
       baseColor: isDark ? AppColors.grey800 : AppColors.grey200,
       highlightColor: isDark ? AppColors.grey700 : AppColors.grey100,
-      child: child ?? Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.grey800 : AppColors.grey200,
-          borderRadius: borderRadius ?? BorderRadius.circular(8),
-        ),
-      ),
+      child: child ??
+          Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.grey800 : AppColors.grey200,
+              borderRadius: borderRadius ?? BorderRadius.circular(8),
+            ),
+          ),
     );
   }
 }
@@ -38,7 +39,7 @@ class AppShimmer extends StatelessWidget {
 class ShimmerCard extends StatelessWidget {
   final double? width;
   final double height;
-  
+
   const ShimmerCard({
     super.key,
     this.width,
@@ -69,13 +70,20 @@ class ShimmerCard extends StatelessWidget {
               children: [
                 const AppShimmer(height: 16, width: double.infinity),
                 const SizedBox(height: 8),
-                AppShimmer(height: 12, width: MediaQuery.of(context).size.width * 0.6),
+                AppShimmer(
+                    height: 12, width: MediaQuery.of(context).size.width * 0.6),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const AppShimmer(height: 24, width: 24, borderRadius: BorderRadius.all(Radius.circular(12))),
+                    const AppShimmer(
+                        height: 24,
+                        width: 24,
+                        borderRadius: BorderRadius.all(Radius.circular(12))),
                     const SizedBox(width: 8),
-                    Expanded(child: AppShimmer(height: 12, width: MediaQuery.of(context).size.width * 0.3)),
+                    Expanded(
+                        child: AppShimmer(
+                            height: 12,
+                            width: MediaQuery.of(context).size.width * 0.3)),
                   ],
                 ),
               ],
@@ -91,17 +99,23 @@ class ShimmerList extends StatelessWidget {
   final int itemCount;
   final double itemHeight;
   final EdgeInsets? padding;
-  
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
+
   const ShimmerList({
     super.key,
     this.itemCount = 5,
     this.itemHeight = 80,
     this.padding,
+    this.shrinkWrap = false,
+    this.physics,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
+      shrinkWrap: shrinkWrap,
+      physics: physics,
       padding: padding ?? const EdgeInsets.all(16),
       itemCount: itemCount,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -118,7 +132,8 @@ class ShimmerList extends StatelessWidget {
               AppShimmer(
                 width: itemHeight,
                 height: itemHeight,
-                borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.horizontal(left: Radius.circular(12)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -130,9 +145,13 @@ class ShimmerList extends StatelessWidget {
                     children: [
                       const AppShimmer(height: 14, width: double.infinity),
                       const SizedBox(height: 8),
-                      AppShimmer(height: 12, width: MediaQuery.of(context).size.width * 0.4),
+                      AppShimmer(
+                          height: 12,
+                          width: MediaQuery.of(context).size.width * 0.4),
                       const Spacer(),
-                      AppShimmer(height: 10, width: MediaQuery.of(context).size.width * 0.3),
+                      AppShimmer(
+                          height: 10,
+                          width: MediaQuery.of(context).size.width * 0.3),
                     ],
                   ),
                 ),

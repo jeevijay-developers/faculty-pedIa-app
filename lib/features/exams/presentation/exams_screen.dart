@@ -78,17 +78,6 @@ const _exams = [
     tag: 'Board Exam',
     stats: '30L+ Students',
   ),
-  _ExamData(
-    name: 'UPSC',
-    fullName: 'Union Public Service\nCommission',
-    description:
-        'India\'s most prestigious civil services exam for IAS, IPS, IFS and other central government services.',
-    route: '/exam-content/upsc',
-    icon: Icons.account_balance_rounded,
-    subjects: ['GS Paper I', 'GS Paper II', 'CSAT', 'Optional'],
-    tag: 'Civil Services',
-    stats: '10L+ Aspirants',
-  ),
 ];
 
 // ── Screen ─────────────────────────────────────────────────────────────────────

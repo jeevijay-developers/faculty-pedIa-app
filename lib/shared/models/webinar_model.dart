@@ -5,6 +5,7 @@ class Webinar {
   final String? slug;
   final WebinarImage? image;
   final List<String> subject;
+  final List<String> specialization;
   final String? educatorId;
   final String? educatorName;
   final String? educatorImage;
@@ -18,6 +19,7 @@ class Webinar {
   final int? registeredCount;
   final String? status;
   final bool? isActive;
+  final bool? isEnrolled;
   final DateTime? createdAt;
 
   Webinar({
@@ -27,6 +29,7 @@ class Webinar {
     this.slug,
     this.image,
     this.subject = const [],
+    this.specialization = const [],
     this.educatorId,
     this.educatorName,
     this.educatorImage,
@@ -40,6 +43,7 @@ class Webinar {
     this.registeredCount,
     this.status,
     this.isActive,
+    this.isEnrolled,
     this.createdAt,
   });
 
@@ -66,6 +70,8 @@ class Webinar {
       image:
           json['image'] != null ? WebinarImage.fromJson(json['image']) : null,
       subject: _parseStringList(json['subject']),
+      specialization:
+          _parseStringList(json['specialization'] ?? json['specializations']),
       educatorId: _parseEducatorId(json),
       educatorName: _parseEducatorName(json),
       educatorImage: _parseEducatorImage(json),
@@ -83,6 +89,10 @@ class Webinar {
       registeredCount: _parseInt(json['registeredCount'] ?? json['attendees']),
       status: json['status'],
       isActive: json['isActive'],
+      isEnrolled: json['isEnrolled'] ??
+          json['enrolled'] ??
+          json['isRegistered'] ??
+          json['isPurchased'],
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'])
           : null,
@@ -142,6 +152,7 @@ class Webinar {
       'slug': slug,
       'image': image?.toJson(),
       'subject': subject,
+      'specialization': specialization,
       'educatorId': educatorId,
       'educatorName': educatorName,
       'educatorImage': educatorImage,
@@ -155,6 +166,7 @@ class Webinar {
       'registeredCount': registeredCount,
       'status': status,
       'isActive': isActive,
+      'isEnrolled': isEnrolled,
       'createdAt': createdAt?.toIso8601String(),
     };
   }

@@ -20,7 +20,7 @@ class AppNotification {
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
-    final senderData = json['sender'];
+    final senderData = json['sender'] ?? json['educator'];
     final metadataData = json['metadata'];
 
     return AppNotification(
@@ -53,13 +53,26 @@ class NotificationSender {
   const NotificationSender({this.name, this.avatar});
 
   factory NotificationSender.fromJson(Map<String, dynamic> json) {
+    String? avatar;
+    final imageValue = json['image'];
+    if (imageValue is String) {
+      avatar = imageValue;
+    } else if (imageValue is Map<String, dynamic>) {
+      final url = imageValue['url'];
+      if (url is String && url.isNotEmpty) {
+        avatar = url;
+      }
+    }
+    avatar ??= json['profilePicture']?.toString();
+    avatar ??= json['avatar']?.toString();
+    avatar ??= json['profileImage']?.toString();
+    avatar ??= json['imageUrl']?.toString();
+
     return NotificationSender(
       name: json['fullName']?.toString() ??
           json['name']?.toString() ??
           json['username']?.toString(),
-      avatar: json['profilePicture']?.toString() ??
-          json['image']?.toString() ??
-          json['avatar']?.toString(),
+      avatar: avatar,
     );
   }
 }

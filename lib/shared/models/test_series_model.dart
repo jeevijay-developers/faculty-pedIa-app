@@ -272,6 +272,7 @@ class Test {
   final int? negativeMarking;
   final DateTime? startTime;
   final DateTime? endTime;
+  final DateTime? createdAt;
   final String? status;
   final bool? isActive;
   final List<Question>? questions;
@@ -287,6 +288,7 @@ class Test {
     this.negativeMarking,
     this.startTime,
     this.endTime,
+    this.createdAt,
     this.status,
     this.isActive,
     this.questions,
@@ -308,6 +310,9 @@ class Test {
           : null,
       endTime:
           json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
       status: json['status'],
       isActive: json['isActive'],
       questions: (json['questions'] is List)
@@ -334,6 +339,7 @@ class Test {
       'negativeMarking': negativeMarking,
       'startTime': startTime?.toIso8601String(),
       'endTime': endTime?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
       'status': status,
       'isActive': isActive,
     };
@@ -345,7 +351,8 @@ class Question {
   final String? text;
   final String? imageUrl;
   final List<Option> options;
-  final int? correctOption;
+  final dynamic correctOption;
+  final dynamic correctOptions;
   final String? explanation;
   final int? marks;
   final int? negativeMarks;
@@ -358,6 +365,7 @@ class Question {
     this.imageUrl,
     this.options = const [],
     this.correctOption,
+    this.correctOptions,
     this.explanation,
     this.marks,
     this.negativeMarks,
@@ -366,20 +374,49 @@ class Question {
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
+    final optionsValue = json['options'];
+    final marksValue = json['marks'];
+    final parsedOptions = <Option>[];
+
+    if (optionsValue is Map<String, dynamic>) {
+      const labels = ['A', 'B', 'C', 'D'];
+      for (var i = 0; i < labels.length; i++) {
+        final label = labels[i];
+        final text = optionsValue[label];
+        if (text != null && text.toString().isNotEmpty) {
+          parsedOptions.add(Option(index: i, text: text.toString()));
+        }
+      }
+    } else if (optionsValue is List) {
+      parsedOptions.addAll(optionsValue
+          .asMap()
+          .entries
+          .map((e) => Option.fromJson(e.value, e.key))
+          .toList());
+    }
+
+    int? positiveMarks;
+    int? negativeMarks;
+    if (marksValue is Map<String, dynamic>) {
+      final positive = marksValue['positive'];
+      final negative = marksValue['negative'];
+      if (positive is num) positiveMarks = positive.toInt();
+      if (negative is num) negativeMarks = negative.toInt();
+    } else if (marksValue is num) {
+      positiveMarks = marksValue.toInt();
+    }
+
     return Question(
       id: json['_id'] ?? json['id'] ?? '',
-      text: json['text'] ?? json['question'],
-      imageUrl: json['imageUrl'] ?? json['image'],
-      options: (json['options'] as List<dynamic>?)
-              ?.asMap()
-              .entries
-              .map((e) => Option.fromJson(e.value, e.key))
-              .toList() ??
-          [],
+      text: json['text'] ?? json['question'] ?? json['title'],
+      imageUrl: json['imageUrl'] ?? json['image'] ?? json['questionImage'],
+      options: parsedOptions,
       correctOption: json['correctOption'] ?? json['correctAnswer'],
+      correctOptions: json['correctOptions'],
       explanation: json['explanation'],
-      marks: json['marks'],
-      negativeMarks: json['negativeMarks'],
+      marks: positiveMarks ?? TestSeries._parseInt(json['marks']),
+      negativeMarks:
+          negativeMarks ?? TestSeries._parseInt(json['negativeMarks']),
       subject: json['subject'],
       topic: json['topic'],
     );
@@ -392,6 +429,7 @@ class Question {
       'imageUrl': imageUrl,
       'options': options.map((o) => o.toJson()).toList(),
       'correctOption': correctOption,
+      'correctOptions': correctOptions,
       'explanation': explanation,
       'marks': marks,
       'negativeMarks': negativeMarks,

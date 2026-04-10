@@ -56,9 +56,9 @@ class EducatorsScreen extends ConsumerStatefulWidget {
 class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
-  String _activeFilter = 'All';
+  String _examFilter = 'All Exams';
 
-  static const _filters = ['All', 'Active', 'Top Rated', 'Popular'];
+  static const _examFilters = ['All Exams', 'IIT-JEE', 'NEET', 'CBSE'];
 
   @override
   void dispose() {
@@ -79,19 +79,12 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
           .toList();
     }
 
-    switch (_activeFilter) {
-      case 'Active':
-        result = result.where((e) => e.status == 'active').toList();
-        break;
-      case 'Top Rated':
-        result = result.where((e) => (e.rating?.average ?? 0) >= 4.0).toList()
-          ..sort((a, b) =>
-              (b.rating?.average ?? 0).compareTo(a.rating?.average ?? 0));
-        break;
-      case 'Popular':
-        result = result.toList()
-          ..sort((a, b) => b.followerCount.compareTo(a.followerCount));
-        break;
+    if (_examFilter != 'All Exams') {
+      final target = _examFilter.toLowerCase();
+      result = result
+          .where((e) =>
+              e.specialization.any((s) => s.toLowerCase().contains(target)))
+          .toList();
     }
     return result;
   }
@@ -114,7 +107,12 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
               child: educatorsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(16),
-                  child: ShimmerList(itemCount: 6, itemHeight: 140),
+                  child: ShimmerList(
+                    itemCount: 6,
+                    itemHeight: 140,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                  ),
                 ),
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(16),
@@ -322,18 +320,18 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
 
           const SizedBox(height: 14),
 
-          // Filter chips — blue only, no rainbow
+          // Exam filter chips — blue only, no rainbow
           SizedBox(
             height: 34,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _filters.length,
+              itemCount: _examFilters.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
-                final f = _filters[i];
-                final active = _activeFilter == f;
+                final f = _examFilters[i];
+                final active = _examFilter == f;
                 return GestureDetector(
-                  onTap: () => setState(() => _activeFilter = f),
+                  onTap: () => setState(() => _examFilter = f),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding:
