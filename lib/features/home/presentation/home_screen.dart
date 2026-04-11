@@ -614,16 +614,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+
           // Wide single card
-          _quickActionCard(
-            icon: Icons.live_tv_rounded,
-            title: 'Join Live Class',
-            subtitle: '3 sessions starting today — tap to join',
-            gradient: [const Color(0xFFDC2626), const Color(0xFFB91C1C)],
-            onTap: () => context.push('/live'),
-            wide: true,
-          ),
         ],
       ),
     );

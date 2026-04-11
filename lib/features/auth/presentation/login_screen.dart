@@ -89,43 +89,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 48),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: SlideTransition(
+              position: _slideAnim,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 48),
 
-                    // ── Brand block ─────────────────────────────────────
-                    Align(
-                      alignment: Alignment.center,
-                      child: _buildBrandBlock(isDark),
-                    ),
+                      // ── Brand block ─────────────────────────────────────
+                      Align(
+                        alignment: Alignment.center,
+                        child: _buildBrandBlock(isDark),
+                      ),
 
-                    const SizedBox(height: 40),
+                      const SizedBox(height: 40),
 
-                    // ── Form card ───────────────────────────────────────
-                    _buildFormCard(context, authState, isDark),
+                      // ── Form card ───────────────────────────────────────
+                      _buildFormCard(context, authState, isDark),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    // ── Divider ─────────────────────────────────────────
-                    _buildDivider(isDark),
+                      // ── Divider ─────────────────────────────────────────
+                      _buildDivider(isDark),
 
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                    // ── Sign up link ────────────────────────────────────
-                    _buildSignupRow(context, isDark),
+                      // ── Sign up link ────────────────────────────────────
+                      _buildSignupRow(context, isDark),
 
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
             ),
