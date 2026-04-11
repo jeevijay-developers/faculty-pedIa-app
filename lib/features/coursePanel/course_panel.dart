@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -24,9 +23,6 @@ class CoursePanelScreen extends StatefulWidget {
 class _CoursePanelScreenState extends State<CoursePanelScreen> {
   late Future<List<CourseVideo>> _videosFuture;
   late Future<List<StudyMaterialItem>> _materialsFuture;
-  YoutubePlayerController? _ytController;
-  String? _currentVideoId;
-  bool _videoError = false;
 
   @override
   void initState() {
@@ -37,7 +33,6 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
 
   @override
   void dispose() {
-    _ytController?.dispose();
     super.dispose();
   }
 
@@ -61,38 +56,7 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
     }
 
     final videos = _extractVideos(data);
-    if (videos.isNotEmpty) {
-      _initOrLoadVideo(videos.first.primaryLink, initialize: true);
-    }
     return videos;
-  }
-
-  void _initOrLoadVideo(String url, {bool initialize = false}) {
-    final id = YoutubePlayer.convertUrlToId(url.trim());
-    if (id == null || id.isEmpty) {
-      if (mounted) setState(() => _videoError = true);
-      return;
-    }
-
-    if (initialize && _ytController == null) {
-      _currentVideoId = id;
-      _ytController = YoutubePlayerController(
-        initialVideoId: id,
-        flags: const YoutubePlayerFlags(
-          autoPlay: false,
-          enableCaption: false,
-          forceHD: false,
-          hideControls: false,
-        ),
-      );
-      if (mounted) setState(() => _videoError = false);
-      return;
-    }
-
-    if (_currentVideoId == id) return;
-    _currentVideoId = id;
-    _ytController?.load(id);
-    if (mounted) setState(() => _videoError = false);
   }
 
   Future<List<StudyMaterialItem>> _fetchMaterials() async {
@@ -178,6 +142,7 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
           builder: (context, snapshot) {
             final isLoading = snapshot.connectionState != ConnectionState.done;
             final videos = snapshot.data ?? [];
+            final firstVideo = videos.isNotEmpty ? videos.first : null;
             final completedCount = videos.where((e) => e.isCompleted).length;
             final totalCount = videos.length;
             final progress = totalCount == 0
@@ -191,8 +156,9 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
                 children: [
                   _HeroVideoCard(
                     imageUrl: widget.imageUrl,
-                    controller: _ytController,
-                    hasError: _videoError,
+                    onTap: firstVideo != null
+                        ? () => _openVideo(context, firstVideo)
+                        : null,
                   ),
                   const SizedBox(height: 14),
                   Text(
@@ -228,8 +194,7 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
                                 .map(
                                   (item) => _ContentTile(
                                     item: item,
-                                    onTap: () =>
-                                        _initOrLoadVideo(item.primaryLink),
+                                    onTap: () => _openVideo(context, item),
                                   ),
                                 )
                                 .toList(),
@@ -365,79 +330,82 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
       },
     );
   }
+
+  void _openVideo(BuildContext context, CourseVideo item) {
+    if (item.primaryLink.isEmpty) return;
+    context.push('/video-player', extra: {
+      'title': item.title,
+      'url': item.primaryLink,
+    });
+  }
 }
 
 class _HeroVideoCard extends StatelessWidget {
   final String? imageUrl;
-  final YoutubePlayerController? controller;
-  final bool hasError;
+  final VoidCallback? onTap;
 
   const _HeroVideoCard({
     required this.imageUrl,
-    required this.controller,
-    required this.hasError,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: Container(
-        color: Colors.black,
-        height: 200,
-        width: double.infinity,
-        child: controller != null
-            ? YoutubePlayer(
-                controller: controller!,
-                showVideoProgressIndicator: true,
-                progressIndicatorColor: AppColors.primary,
-              )
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    height: 200,
-                    width: double.infinity,
-                    child: imageUrl != null && imageUrl!.isNotEmpty
-                        ? Image.network(
-                            imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder(),
-                          )
-                        : _placeholder(),
-                  ),
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.2),
-                        ],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Colors.white, size: 30),
-                  ),
-                ],
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          color: Colors.black,
+          height: 200,
+          width: double.infinity,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: imageUrl != null && imageUrl!.isNotEmpty
+                    ? Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholder(),
+                      )
+                    : _placeholder(),
               ),
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.5),
+                      Colors.black.withOpacity(0.2),
+                    ],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+              ),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.play_arrow_rounded,
+                    color: Colors.white, size: 30),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

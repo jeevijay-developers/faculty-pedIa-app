@@ -322,8 +322,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       actions: [
         _appBarIconBtn(Icons.notifications_outlined, isDark,
             () => context.push('/notifications')),
-        _appBarIconBtn(
-            Icons.settings_outlined, isDark, () => context.push('/settings')),
         const SizedBox(width: 8),
       ],
       bottom: PreferredSize(
@@ -508,7 +506,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
                     // edit profile button
                     GestureDetector(
-                      onTap: () => context.push('/edit-profile'),
+                      onTap: () => _changeProfileImage(context),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 5),
@@ -522,7 +520,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             Icon(Icons.edit_rounded, color: kPrimary, size: 13),
                             const SizedBox(width: 5),
                             Text(
-                              'Edit Profile',
+                              'Edit Image',
                               style: TextStyle(
                                 color: kPrimary,
                                 fontSize: 12,

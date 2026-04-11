@@ -224,7 +224,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final extra = state.extra is Map ? state.extra as Map : const {};
           final title = extra['title']?.toString() ?? 'Video';
           final url = extra['url']?.toString() ?? '';
-          return VideoPlayerScreen(title: title, url: url);
+          final fullscreen = extra['fullscreen'] == true;
+          return VideoPlayerScreen(
+            title: title,
+            url: url,
+            fullscreen: fullscreen,
+          );
         },
       ),
       GoRoute(

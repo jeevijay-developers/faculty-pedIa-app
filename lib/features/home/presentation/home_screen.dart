@@ -54,13 +54,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _buildExamCategories(context),
                   const SizedBox(height: 28),
                   _buildSectionHeader(context, 'Explore Features'),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
                   _buildFeaturesGrid(context, isDark),
                   const SizedBox(height: 28),
                   _buildQuickActions(context),
                   const SizedBox(height: 28),
                   _buildStatsSection(context, isDark),
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -142,11 +141,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           onTap: () => context.push('/notifications'),
         ),
-        const SizedBox(width: 4),
-        _appBarIcon(
-          Icons.search_rounded,
-          onTap: () {},
-        ),
         const SizedBox(width: 8),
       ],
       bottom: PreferredSize(
@@ -202,18 +196,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         subtitle: 'Join live classes with India\'s top faculty',
         gradient: [kPrimary, kPrimaryDark],
         icon: Icons.people_alt_rounded,
+        route: '/educators',
       ),
       _BannerData(
-        title: 'Start Teaching\nOnline Today',
-        subtitle: 'Share your knowledge and earn with us',
+        title: 'Practice with\nTest Series',
+        subtitle: 'Solve tests. Track your performance.',
         gradient: [const Color(0xFF7C3AED), const Color(0xFF5B21B6)],
         icon: Icons.cast_for_education_rounded,
+        route: '/test-series',
       ),
       _BannerData(
         title: 'Crack Your Dream\nExam',
-        subtitle: 'Access premium test series & materials',
+        subtitle: 'Access premium Courses & Study Materials',
         gradient: [const Color(0xFF059669), const Color(0xFF047857)],
         icon: Icons.emoji_events_rounded,
+        route: '/exams',
       ),
     ];
 
@@ -221,14 +218,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       children: [
         CarouselSlider(
           options: CarouselOptions(
-            height: 172,
+            height: 184,
             autoPlay: true,
             autoPlayInterval: const Duration(seconds: 4),
             enlargeCenterPage: false,
             viewportFraction: 0.92,
             onPageChanged: (i, _) => setState(() => _bannerIndex = i),
           ),
-          items: banners.map((b) => _bannerCard(b)).toList(),
+          items: banners.map((b) => _bannerCard(context, b)).toList(),
         ),
         const SizedBox(height: 12),
         Row(
@@ -251,105 +248,111 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _bannerCard(_BannerData b) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: b.gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _bannerCard(BuildContext context, _BannerData b) {
+    return GestureDetector(
+      onTap: b.route == null ? null : () => context.go(b.route!),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: b.gradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
-        children: [
-          // decorative circle
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
+        child: Stack(
+          children: [
+            Positioned(
+              right: -20,
+              top: -20,
+              child: Container(
+                width: 130,
+                height: 130,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.07),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            right: 20,
-            bottom: -30,
-            child: Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
+            Positioned(
+              right: 20,
+              bottom: -30,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.07),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(22),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        b.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.25,
-                          letterSpacing: -0.3,
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          b.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            height: 1.25,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        b.subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withOpacity(0.85),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'Explore Now',
+                        const SizedBox(height: 6),
+                        Text(
+                          b.subtitle,
                           style: TextStyle(
-                            color: b.gradient.first,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.85),
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Explore Now',
+                            style: TextStyle(
+                              color: b.gradient.first,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
-                    shape: BoxShape.circle,
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(b.icon, color: Colors.white, size: 32),
                   ),
-                  child: Icon(b.icon, color: Colors.white, size: 32),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -415,60 +418,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           '/exam-content/cbse'),
     ];
 
-    return SizedBox(
-      height: 110,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: exams.length,
-        itemBuilder: (context, i) {
-          final e = exams[i];
-          return GestureDetector(
-            onTap: () => context.push(e.route),
-            child: Container(
-              width: 90,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: e.gradient.first.withOpacity(0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: e.gradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: exams.map((e) {
+          final isLast = e == exams.last;
+          return Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => context.push(e.route),
+                    child: Container(
+                      height: 110,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: e.gradient.first.withOpacity(0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: e.gradient,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(e.icon, color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            e.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: e.gradient.first,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Icon(e.icon, color: Colors.white, size: 22),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    e.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: e.gradient.first,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                if (!isLast) const SizedBox(width: 12),
+              ],
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
@@ -476,63 +484,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Features Grid ────────────────────────────────────────────────────────────
   Widget _buildFeaturesGrid(BuildContext context, bool isDark) {
     final features = [
-      _FeatureData('Courses', Icons.play_circle_rounded, kPrimary, '/courses'),
-      _FeatureData('Test Series', Icons.assignment_rounded,
+      _FeatureData('Courses', '240+ Modules', Icons.play_circle_rounded,
+          kPrimary, '/courses'),
+      _FeatureData('Test Series', 'Mock Exams', Icons.assignment_rounded,
           const Color(0xFF7C3AED), '/test-series'),
-      _FeatureData('Webinars', Icons.videocam_rounded, const Color(0xFF059669),
-          '/webinars'),
-      _FeatureData('Educators', Icons.supervisor_account_rounded,
-          const Color(0xFFD97706), '/educators'),
-      _FeatureData('Live Class', Icons.live_tv_rounded, const Color(0xFFDC2626),
-          '/live'),
-      _FeatureData('Notes', Icons.sticky_note_2_rounded,
-          const Color(0xFF0891B2), '/notes'),
+      _FeatureData('Webinars', 'Live Sessions', Icons.videocam_rounded,
+          const Color(0xFF059669), '/webinars'),
       _FeatureData(
-          'Doubts', Icons.help_rounded, const Color(0xFF9333EA), '/doubts'),
-      _FeatureData(
-          'Books', Icons.menu_book_rounded, const Color(0xFF16A34A), '/books'),
+          'Educators',
+          'Expert Mentors',
+          Icons.supervisor_account_rounded,
+          const Color(0xFFD97706),
+          '/educators'),
     ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GridView.builder(
+        padding: EdgeInsets.zero,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          childAspectRatio: 0.82,
+          crossAxisCount: 2,
+          childAspectRatio: 1.55,
           crossAxisSpacing: 12,
-          mainAxisSpacing: 16,
+          mainAxisSpacing: 14,
         ),
         itemCount: features.length,
         itemBuilder: (context, i) {
           final f = features[i];
           return GestureDetector(
             onTap: () => context.push(f.route),
-            child: Column(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: f.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0B1220) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: const Color(0xFF94A3B8).withOpacity(0.18),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: f.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(f.icon, color: f.color, size: 22),
                   ),
-                  child: Icon(f.icon, color: f.color, size: 26),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  f.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white70 : const Color(0xFF374151),
+                  const SizedBox(height: 10),
+                  Text(
+                    f.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    f.subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -779,11 +814,13 @@ class _BannerData {
   final String title, subtitle;
   final List<Color> gradient;
   final IconData icon;
+  final String? route;
   const _BannerData(
       {required this.title,
       required this.subtitle,
       required this.gradient,
-      required this.icon});
+      required this.icon,
+      this.route});
 }
 
 class _ExamData {
@@ -794,10 +831,11 @@ class _ExamData {
 }
 
 class _FeatureData {
-  final String name, route;
+  final String name, subtitle, route;
   final IconData icon;
   final Color color;
-  const _FeatureData(this.name, this.icon, this.color, this.route);
+  const _FeatureData(
+      this.name, this.subtitle, this.icon, this.color, this.route);
 }
 
 class _StatData {

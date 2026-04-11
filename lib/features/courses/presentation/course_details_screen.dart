@@ -143,6 +143,9 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
             slivers: [
               _buildSliverAppBar(context, course, isDark),
               SliverToBoxAdapter(
+                child: _buildCourseBanner(course, isDark),
+              ),
+              SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -150,12 +153,13 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
                     _buildTitleSection(context, course, isDark),
 
                     // ── Intro Video ─────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildIntroVideo(course),
-                    ),
+                    if (_hasIntroVideo(course))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildIntroVideo(course),
+                      ),
 
-                    const SizedBox(height: 24),
+                    if (_hasIntroVideo(course)) const SizedBox(height: 24),
 
                     // ── Stats Row ───────────────────────────────────────────
                     _buildStatsRow(context, course, isDark),
@@ -341,15 +345,86 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
   }
 
   // ── Intro Video ────────────────────────────────────────────────────────────
+  bool _hasIntroVideo(Course course) {
+    final resolvedVideoUrl = _resolveUrl(course.introVideo ?? '');
+    final vimeoUri = course.introVideoVimeoUri ?? '';
+    return resolvedVideoUrl.isNotEmpty || vimeoUri.isNotEmpty;
+  }
+
+  Widget _buildCourseBanner(Course course, bool isDark) {
+    final bannerUrl = _resolveUrl(course.imageUrl);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: SizedBox(
+          height: 190,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (bannerUrl.isNotEmpty)
+                Image.network(
+                  bannerUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _bannerFallback(isDark),
+                )
+              else
+                _bannerFallback(isDark),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.55),
+                      Colors.black.withOpacity(0.1),
+                    ],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 14,
+                bottom: 12,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.school_rounded,
+                          color: Colors.white, size: 12),
+                      const SizedBox(width: 6),
+                      Text(
+                        course.subject.isEmpty
+                            ? 'Course Banner'
+                            : course.subject.first,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildIntroVideo(Course course) {
     final resolvedVideoUrl = _resolveUrl(course.introVideo ?? '');
     final resolvedImageUrl = _resolveUrl(course.imageUrl);
     final vimeoEmbedUrl =
         _resolveVimeoEmbedUrl(resolvedVideoUrl, course.introVideoVimeoUri);
-
-    if (resolvedVideoUrl.isEmpty) {
-      return _videoPlaceholder(resolvedImageUrl, null);
-    }
 
     if (vimeoEmbedUrl.isNotEmpty && _vimeoController != null) {
       return ClipRRect(
@@ -362,8 +437,22 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
       );
     }
 
+    if (resolvedVideoUrl.isEmpty) {
+      return _videoPlaceholder(resolvedImageUrl, null);
+    }
+
     return _videoPlaceholder(resolvedImageUrl, _videoController);
   }
+
+  Widget _bannerFallback(bool isDark) => Container(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.school_rounded,
+          color: isDark ? Colors.white24 : const Color(0xFF94A3B8),
+          size: 48,
+        ),
+      );
 
   Widget _videoPlaceholder(String imageUrl, VideoPlayerController? controller) {
     return ClipRRect(

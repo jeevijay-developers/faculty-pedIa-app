@@ -107,65 +107,60 @@ class HamburgerDrawer extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [kPrimary, kPrimaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: const BoxDecoration(
+        color: kPrimary,
+        borderRadius: BorderRadius.only(
           topRight: Radius.circular(28),
         ),
       ),
       child: Stack(
         children: [
-          // decorative circle
           Positioned(
-            right: -16,
-            top: -16,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
-              ),
+            right: -8,
+            top: -12,
+            child: Icon(
+              Icons.school_rounded,
+              size: 78,
+              color: Colors.white.withOpacity(0.12),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // avatar
-              UserAvatar(
-                imageUrl: imageUrl,
-                name: name,
-                size: 62,
-                showBorder: true,
-                borderColor: Colors.white.withOpacity(0.4),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.35), width: 2),
+                ),
+                child: UserAvatar(
+                  imageUrl: imageUrl,
+                  name: name,
+                  size: 56,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 name,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  letterSpacing: -0.2,
                 ),
               ),
-              if (email.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  email,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.75),
-                    fontSize: 12,
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                email.isNotEmpty ? email.toUpperCase() : 'SCHOLASTIC MEMBER',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.75),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
                 ),
-              ],
-              const SizedBox(height: 14),
-              // View profile pill
+              ),
             ],
           ),
         ],
