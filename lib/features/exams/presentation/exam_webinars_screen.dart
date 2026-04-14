@@ -73,9 +73,6 @@ class ExamWebinarsScreen extends ConsumerStatefulWidget {
 }
 
 class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
-  String _activeFilter = 'All';
-  static const _filters = ['All', 'Live', 'Upcoming', 'Ended', 'Free'];
-
   String get _examLabel {
     switch (widget.examType.toLowerCase()) {
       case 'iit-jee':
@@ -86,21 +83,6 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
         return 'CBSE';
       default:
         return widget.examType.toUpperCase();
-    }
-  }
-
-  List<Webinar> _applyFilter(List<Webinar> list) {
-    switch (_activeFilter) {
-      case 'Live':
-        return list.where((w) => w.isLive).toList();
-      case 'Upcoming':
-        return list.where((w) => w.isUpcoming).toList();
-      case 'Ended':
-        return list.where((w) => !w.isLive && !w.isUpcoming).toList();
-      case 'Free':
-        return list.where((w) => w.isFree == true).toList();
-      default:
-        return list;
     }
   }
 
@@ -119,9 +101,6 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
           slivers: [
             // ── AppBar ────────────────────────────────────────────────
             _buildSliverAppBar(context, isDark),
-
-            // ── Filter chips ──────────────────────────────────────────
-            SliverToBoxAdapter(child: _buildFilterBar(isDark)),
 
             // ── Content ───────────────────────────────────────────────
             SliverToBoxAdapter(
@@ -144,22 +123,19 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
                   ),
                 ),
                 data: (webinars) {
-                  final filtered = _applyFilter(webinars);
-
                   if (webinars.isEmpty) return _emptyWidget(isDark);
-                  if (filtered.isEmpty) return _noResultsWidget(isDark);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCountStrip(webinars, filtered, isDark),
+                      _buildCountStrip(webinars, isDark),
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
-                        itemCount: filtered.length,
+                        itemCount: webinars.length,
                         itemBuilder: (_, i) => _WebinarCard(
-                          webinar: filtered[i],
+                          webinar: webinars[i],
                           isDark: isDark,
                         ),
                       ),
@@ -282,56 +258,8 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
     );
   }
 
-  // ── Filter Bar ────────────────────────────────────────────────────────────
-  Widget _buildFilterBar(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-      child: SizedBox(
-        height: 34,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: _filters.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (_, i) {
-            final f = _filters[i];
-            final active = _activeFilter == f;
-            return GestureDetector(
-              onTap: () => setState(() => _activeFilter = f),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                decoration: BoxDecoration(
-                  color: active ? kPrimary : (isDark ? kSurfaceDark : kSurface),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: active
-                        ? kPrimary
-                        : (isDark ? Colors.white.withOpacity(0.08) : kDivLight),
-                    width: active ? 1.5 : 1,
-                  ),
-                ),
-                child: Text(
-                  f,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: active
-                        ? Colors.white
-                        : (isDark ? kText2Dark : kText2Light),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   // ── Count strip ───────────────────────────────────────────────────────────
-  Widget _buildCountStrip(
-      List<Webinar> all, List<Webinar> filtered, bool isDark) {
+  Widget _buildCountStrip(List<Webinar> all, bool isDark) {
     final liveCount = all.where((w) => w.isLive).length;
 
     return Padding(
@@ -339,7 +267,7 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
       child: Row(
         children: [
           Text(
-            '${filtered.length} webinars',
+            '${all.length} webinars',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -386,28 +314,6 @@ class _ExamWebinarsScreenState extends ConsumerState<ExamWebinarsScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text('Check back later for upcoming webinars',
-              style: TextStyle(
-                  fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
-        ]),
-      );
-
-  Widget _noResultsWidget(bool isDark) => Padding(
-        padding: const EdgeInsets.only(top: 60),
-        child: Column(children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-                color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
-            child: const Icon(Icons.filter_list_off_rounded,
-                color: kPrimary, size: 32),
-          ),
-          const SizedBox(height: 16),
-          Text('No $_activeFilter webinars',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Try a different filter',
               style: TextStyle(
                   fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
         ]),
@@ -480,7 +386,7 @@ class _WebinarCardState extends State<_WebinarCard>
   String get _buttonText {
     if (widget.webinar.isLive) return 'Join Now';
     if (widget.webinar.isUpcoming) return 'Register';
-    return 'View Recording';
+    return 'View Details';
   }
 
   @override

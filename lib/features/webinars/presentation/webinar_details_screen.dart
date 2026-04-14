@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -31,20 +32,175 @@ const kDivLight = Color(0xFFF1F5F9);
 final webinarDetailProvider =
     FutureProvider.family.autoDispose<Webinar, String>((ref, id) async {
   final api = ApiService();
-  final response = await api.get('/api/webinars/$id');
+  final auth = ref.watch(authStateProvider);
+  final studentId = auth.student?.id;
+  final response = await api.get(
+    '/api/webinars/$id',
+    queryParameters: studentId != null && studentId.isNotEmpty
+        ? {'studentId': studentId}
+        : null,
+  );
   final data = response.data;
 
   Map<String, dynamic> webinarData = {};
-  if (data is Map && data['data'] != null) {
-    webinarData = Map<String, dynamic>.from(data['data']);
-  } else if (data is Map && data['webinar'] != null) {
-    webinarData = data['webinar'];
+  if (data is Map && data['data'] is Map) {
+    final dataMap = Map<String, dynamic>.from(data['data']);
+    if (dataMap['webinar'] is Map) {
+      webinarData = Map<String, dynamic>.from(dataMap['webinar']);
+    } else {
+      webinarData = dataMap;
+    }
+    webinarData = _mergeWebinarExtras(webinarData, dataMap);
+  } else if (data is Map && data['webinar'] is Map) {
+    webinarData = Map<String, dynamic>.from(data['webinar']);
+    webinarData = _mergeWebinarExtras(
+      webinarData,
+      Map<String, dynamic>.from(data),
+    );
   } else if (data is Map) {
     webinarData = Map<String, dynamic>.from(data);
   }
 
+  if (studentId != null && studentId.isNotEmpty) {
+    final inferred = _inferIsEnrolled(webinarData, studentId);
+    if (inferred != null) {
+      webinarData = {
+        ...webinarData,
+        'isEnrolled': inferred,
+      };
+    } else {
+      final enrolled = await _fetchStudentWebinarEnrollment(
+        api,
+        studentId,
+        id,
+      );
+      if (enrolled != null) {
+        webinarData = {
+          ...webinarData,
+          'isEnrolled': enrolled,
+        };
+      }
+    }
+  }
+
   return Webinar.fromJson(webinarData);
 });
+
+Map<String, dynamic> _mergeWebinarExtras(
+  Map<String, dynamic> base,
+  Map<String, dynamic> source,
+) {
+  const keys = [
+    'isEnrolled',
+    'enrolled',
+    'isRegistered',
+    'isPurchased',
+    'enrolledStudents',
+    'registeredStudents',
+    'attendees',
+    'studentEnrolled',
+    'students',
+    'registrations',
+    'participants',
+    'meetingLink',
+    'webinarLink',
+    'link',
+  ];
+
+  final merged = Map<String, dynamic>.from(base);
+  for (final key in keys) {
+    if (merged.containsKey(key)) continue;
+    if (source.containsKey(key)) {
+      merged[key] = source[key];
+    }
+  }
+  return merged;
+}
+
+bool? _inferIsEnrolled(Map<String, dynamic> data, String studentId) {
+  final candidateKeys = [
+    'enrolledStudents',
+    'registeredStudents',
+    'attendees',
+    'studentEnrolled',
+    'students',
+    'registrations',
+    'participants',
+  ];
+
+  for (final key in candidateKeys) {
+    final raw = data[key];
+    if (raw is List) {
+      return raw.any((e) => _matchesStudentId(e, studentId));
+    }
+  }
+  return null;
+}
+
+bool _matchesStudentId(dynamic entry, String studentId) {
+  if (entry is String) return entry == studentId;
+  if (entry is Map) {
+    final id = entry['_id'] ??
+        entry['id'] ??
+        entry['studentId'] ??
+        (entry['student'] is Map ? entry['student']['_id'] : null);
+    return id?.toString() == studentId;
+  }
+  return false;
+}
+
+Future<bool?> _fetchStudentWebinarEnrollment(
+  ApiService api,
+  String studentId,
+  String webinarId,
+) async {
+  try {
+    final response = await api.get('/api/students/$studentId');
+    final data = response.data;
+    Map<String, dynamic> studentData = {};
+    if (data is Map && data['data'] is Map) {
+      studentData = Map<String, dynamic>.from(data['data']);
+    } else if (data is Map) {
+      studentData = Map<String, dynamic>.from(data);
+    }
+    return _inferIsEnrolledFromStudent(studentData, webinarId);
+  } catch (_) {
+    return null;
+  }
+}
+
+bool? _inferIsEnrolledFromStudent(
+  Map<String, dynamic> data,
+  String webinarId,
+) {
+  final candidateKeys = [
+    'webinars',
+    'enrolledWebinars',
+    'registeredWebinars',
+    'webinarIds',
+    'webinarRegistrations',
+  ];
+
+  for (final key in candidateKeys) {
+    final raw = data[key];
+    if (raw is List) {
+      return raw.any((e) => _matchesWebinarId(e, webinarId));
+    }
+  }
+  return null;
+}
+
+bool _matchesWebinarId(dynamic entry, String webinarId) {
+  if (entry is String) return entry == webinarId;
+  if (entry is Map) {
+    final id = entry['_id'] ??
+        entry['id'] ??
+        entry['webinarId'] ??
+        (entry['webinar'] is Map ? entry['webinar']['_id'] : null);
+    return id?.toString() == webinarId;
+  }
+  return false;
+}
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 class WebinarDetailsScreen extends ConsumerStatefulWidget {
@@ -873,10 +1029,11 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
 
     final isFree = webinar.isFree == true || (webinar.fees ?? 0) <= 0;
     final isEnrolled = webinar.isEnrolled == true || _hasEnrolled;
-    final btnText = isEnrolled ? 'Join Webinar' : 'Enroll Now';
+    final btnText = isEnrolled ? 'Join Now' : 'Enroll Now';
     final btnIcon = isEnrolled
         ? Icons.videocam_rounded
         : (isFree ? Icons.how_to_reg_rounded : Icons.payments_rounded);
+    final btnColor = isEnrolled ? const Color(0xFF16A34A) : kPrimary;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -899,7 +1056,7 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
             ? null
             : () {
                 if (isEnrolled) {
-                  context.go('/dashboard/webinars');
+                  _joinWebinar(webinar);
                 } else {
                   _startEnrollment(webinar);
                 }
@@ -908,11 +1065,11 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color: kPrimary,
+            color: btnColor,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: kPrimary.withOpacity(0.35),
+                color: btnColor.withOpacity(0.35),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),
@@ -1184,6 +1341,24 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: const Color(0xFF1E293B),
     ));
+  }
+
+  Future<void> _joinWebinar(Webinar webinar) async {
+    final link = webinar.meetingLink?.trim() ?? '';
+    if (link.isEmpty) {
+      _showSnack('Webinar link not available yet.');
+      return;
+    }
+    final uri = Uri.tryParse(link);
+    if (uri == null) {
+      _showSnack('Invalid webinar link.');
+      return;
+    }
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) _showSnack('Could not open webinar link.');
   }
 }
 

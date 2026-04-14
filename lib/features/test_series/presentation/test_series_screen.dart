@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,9 +56,7 @@ class TestSeriesScreen extends ConsumerStatefulWidget {
 class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
-  String _activeFilter = 'All';
-
-  static const _filters = ['All', 'Free', 'Paid', 'Popular'];
+  Timer? _searchDebounce;
 
   String? get _examLabel {
     final type = widget.examType;
@@ -87,8 +87,17 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim());
+    });
   }
 
   List<TestSeries> _applyFilters(List<TestSeries> series) {
@@ -107,18 +116,6 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
               (s.educatorName?.toLowerCase().contains(q) ?? false) ||
               s.subject.any((sub) => sub.toLowerCase().contains(q)))
           .toList();
-    }
-
-    switch (_activeFilter) {
-      case 'Free':
-        result = result.where((s) => s.fees == null || s.fees == 0).toList();
-        break;
-      case 'Paid':
-        result = result.where((s) => s.fees != null && s.fees! > 0).toList();
-        break;
-      case 'Popular':
-        result = result.where((s) => (s.enrolledCount ?? 0) >= 10).toList();
-        break;
     }
     return result;
   }
@@ -218,6 +215,8 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
           onTap: () {
             if (context.canPop())
               context.pop();
+            else if (widget.examType != null && widget.examType!.isNotEmpty)
+              context.go('/exam-content/${widget.examType}');
             else
               context.go('/home');
           },
@@ -319,108 +318,55 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
     );
   }
 
-  // ── Search + Filter ───────────────────────────────────────────────────────
+  // ── Search ────────────────────────────────────────────────────────────────
   Widget _buildSearchAndFilter(bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      child: Column(
-        children: [
-          // search field
-          Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: isDark ? kSurfaceDark : kSurface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? kText1Dark : kText1Light,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search test series…',
-                hintStyle: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? kText2Dark : kText3Light,
-                ),
-                prefixIcon:
-                    const Icon(Icons.search_rounded, color: kPrimary, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? GestureDetector(
-                        onTap: () {
-                          _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                        child: Icon(Icons.close_rounded,
-                            size: 17, color: isDark ? kText2Dark : kText3Light),
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
           ),
-
-          const SizedBox(height: 14),
-
-          // filter chips — blue only
-          SizedBox(
-            height: 34,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final f = _filters[i];
-                final active = _activeFilter == f;
-                return GestureDetector(
-                  onTap: () => setState(() => _activeFilter = f),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? kPrimary
-                          : (isDark ? kSurfaceDark : kSurface),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: active
-                            ? kPrimary
-                            : (isDark
-                                ? Colors.white.withOpacity(0.08)
-                                : kDivLight),
-                        width: active ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Text(
-                      f,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: active
-                            ? Colors.white
-                            : (isDark ? kText2Dark : kText2Light),
-                      ),
-                    ),
-                  ),
-                );
-              },
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: _onSearchChanged,
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? kText1Dark : kText1Light,
           ),
-        ],
+          decoration: InputDecoration(
+            hintText: 'Search test series…',
+            hintStyle: TextStyle(
+              fontSize: 14,
+              color: isDark ? kText2Dark : kText3Light,
+            ),
+            prefixIcon:
+                const Icon(Icons.search_rounded, color: kPrimary, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? GestureDetector(
+                    onTap: () {
+                      _searchCtrl.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                    child: Icon(Icons.close_rounded,
+                        size: 17, color: isDark ? kText2Dark : kText3Light),
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
       ),
     );
   }
@@ -469,7 +415,7 @@ class _TestSeriesScreenState extends ConsumerState<TestSeriesScreen> {
           const Text('No results found',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('Try a different search or filter',
+          Text('Try a different search',
               style: TextStyle(
                   fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
         ]),

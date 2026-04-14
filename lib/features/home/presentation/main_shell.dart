@@ -109,6 +109,8 @@ class _MainShellState extends ConsumerState<MainShell>
     if (path.startsWith('/following')) return 3;
     if (path.startsWith('/results')) return 3;
     if (path.startsWith('/profile')) return 3;
+    if (path.startsWith('/help')) return 3;
+    if (path.startsWith('/privacy')) return 3;
     return 0;
   }
 

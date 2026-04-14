@@ -452,6 +452,12 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "font_awesome_flutter",
+      "rootUri": "file:///C:/Users/Zaid-Pc/AppData/Local/Pub/Cache/hosted/pub.dev/font_awesome_flutter-10.12.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
+    },
+    {
       "name": "form_builder_validators",
       "rootUri": "file:///C:/Users/Zaid-Pc/AppData/Local/Pub/Cache/hosted/pub.dev/form_builder_validators-11.2.0",
       "packageUri": "lib/",

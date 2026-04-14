@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/hamburger_model.dart';
 import '../../shared/widgets/state_widgets.dart';
+import '../../loading/skeleton.courses.dart';
 import '../auth/providers/auth_provider.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
@@ -148,11 +151,21 @@ class StudentCoursesScreen extends ConsumerStatefulWidget {
 
 class _StudentCoursesScreenState extends ConsumerState<StudentCoursesScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      ref.read(courseSearchProvider.notifier).state = value;
+    });
   }
 
   List<StudentCourseItem> _applyFilters(
@@ -185,6 +198,10 @@ class _StudentCoursesScreenState extends ConsumerState<StudentCoursesScreen> {
     final searchQuery = ref.watch(courseSearchProvider);
     final totalCount =
         coursesAsync.maybeWhen(data: (d) => d.totalEnrolled, orElse: () => 0);
+
+    if (coursesAsync.isLoading) {
+      return const StudentCoursesSkeleton();
+    }
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,
@@ -388,7 +405,7 @@ class _StudentCoursesScreenState extends ConsumerState<StudentCoursesScreen> {
       ),
       child: TextField(
         controller: _searchCtrl,
-        onChanged: (v) => ref.read(courseSearchProvider.notifier).state = v,
+        onChanged: _onSearchChanged,
         style:
             TextStyle(fontSize: 14, color: isDark ? kText1Dark : kText1Light),
         decoration: InputDecoration(
@@ -490,25 +507,31 @@ class _StudentCoursesScreenState extends ConsumerState<StudentCoursesScreen> {
   }
 
   // ── Empty ─────────────────────────────────────────────────────────────────
-  Widget _emptyWidget(bool isDark) => Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: Column(children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-                color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
-            child:
-                const Icon(Icons.menu_book_outlined, color: kPrimary, size: 32),
+  Widget _emptyWidget(bool isDark) => Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                    color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
+                child: const Icon(Icons.menu_book_outlined,
+                    color: kPrimary, size: 32),
+              ),
+              const SizedBox(height: 16),
+              const Text('No Courses Found',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text('Try a different filter or search term',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text('No Courses Found',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Try a different filter or search term',
-              style: TextStyle(
-                  fontSize: 13, color: isDark ? kText2Dark : kText3Light)),
-        ]),
+        ),
       );
 }
 

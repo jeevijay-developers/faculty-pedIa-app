@@ -15,6 +15,7 @@ import '../../../shared/models/test_series_model.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/user_widgets.dart';
+import '../../../loading/skeleton.educator.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -117,10 +118,7 @@ class EducatorProfileScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return async.when(
-      loading: () => Scaffold(
-        backgroundColor: isDark ? kBgDark : kBgLight,
-        body: const Center(child: CircularProgressIndicator(color: kPrimary)),
-      ),
+      loading: () => const EducatorProfileSkeleton(),
       error: (e, _) => Scaffold(
         backgroundColor: isDark ? kBgDark : kBgLight,
         appBar: AppBar(
@@ -268,23 +266,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   color: isDark ? kText1Dark : kText1Light,
                 ),
               ),
-              actions: [
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    margin:
-                        const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? kSurfaceDark : kPrimaryBg,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.share_rounded,
-                        color: kPrimary, size: 18),
-                  ),
-                ),
-              ],
+              actions: [],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(0.5),
                 child:
@@ -1792,7 +1774,7 @@ class _CoursesTab extends ConsumerWidget {
               _tabHeader('One to One', 'Personalized live sessions', isDark),
               const SizedBox(height: 12),
               SizedBox(
-                height: 220,
+                height: 232,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: oto.length,
@@ -1807,7 +1789,7 @@ class _CoursesTab extends ConsumerWidget {
               _tabHeader('One to All', 'Interactive group classes', isDark),
               const SizedBox(height: 12),
               SizedBox(
-                height: 220,
+                height: 232,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: ota.length,

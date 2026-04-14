@@ -626,14 +626,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           title: 'Help & Support',
           subtitle: 'FAQs and contact us',
           color: const Color(0xFF0891B2),
-          onTap: () {},
+          onTap: () => context.push('/help'),
         ),
         _MenuItem(
           icon: Icons.privacy_tip_rounded,
           title: 'Privacy Policy',
           subtitle: 'Terms and policies',
           color: const Color(0xFF64748B),
-          onTap: () {},
+          onTap: () => context.push('/privacy'),
         ),
       ];
 
@@ -641,35 +641,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildLogoutButton(BuildContext context, bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: GestureDetector(
-        onTap: () async {
-          final confirm = await _showLogoutDialog(context, isDark);
-          if (confirm && context.mounted) {
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () async {
+            final confirm = await _showLogoutDialog(context, isDark);
+            if (!confirm || !context.mounted) return;
             await ref.read(authStateProvider.notifier).logout();
+            if (!context.mounted) return;
             context.go('/login');
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF2F2),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.2)),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
-              SizedBox(width: 10),
-              Text(
-                'Logout',
-                style: TextStyle(
-                  color: Color(0xFFDC2626),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(18),
+              border:
+                  Border.all(color: const Color(0xFFDC2626).withOpacity(0.2)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
+                SizedBox(width: 10),
+                Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Color(0xFFDC2626),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -724,7 +729,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => Navigator.pop(context, false),
+                      onTap: () =>
+                          Navigator.of(context, rootNavigator: true).pop(false),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
@@ -751,7 +757,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   const SizedBox(width: 10),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => Navigator.pop(context, true),
+                      onTap: () =>
+                          Navigator.of(context, rootNavigator: true).pop(true),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(

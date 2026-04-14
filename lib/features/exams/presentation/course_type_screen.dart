@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -67,6 +69,7 @@ class _CourseTypeScreenState extends ConsumerState<CourseTypeScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   String _sortBy = 'Default';
+  Timer? _searchDebounce;
 
   final _sortOptions = ['Default', 'Price: Low', 'Price: High', 'Popular'];
 
@@ -105,8 +108,17 @@ class _CourseTypeScreenState extends ConsumerState<CourseTypeScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim());
+    });
   }
 
   List<Course> _applyFilters(List<Course> courses) {
@@ -361,7 +373,7 @@ class _CourseTypeScreenState extends ConsumerState<CourseTypeScreen> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                onChanged: _onSearchChanged,
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),

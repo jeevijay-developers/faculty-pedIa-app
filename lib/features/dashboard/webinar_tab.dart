@@ -8,6 +8,7 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/models/hamburger_model.dart';
 import '../../shared/models/webinar_model.dart';
 import '../../shared/widgets/state_widgets.dart';
+import '../../loading/skeleton.webinar.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -111,6 +112,10 @@ class WebinarTabScreen extends ConsumerWidget {
         webinarsAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
     final liveCount = webinarsAsync.maybeWhen(
         data: (d) => d.where((w) => w.isLive).length, orElse: () => 0);
+
+    if (webinarsAsync.isLoading) {
+      return const WebinarTabSkeleton();
+    }
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,

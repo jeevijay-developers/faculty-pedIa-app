@@ -7,6 +7,7 @@ import '../../shared/models/hamburger_model.dart';
 import '../../shared/models/notification_model.dart';
 import '../../shared/widgets/state_widgets.dart';
 import '../../shared/widgets/user_widgets.dart';
+import '../../loading/skeleton.message.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -65,6 +66,10 @@ class MessageTabScreen extends ConsumerWidget {
         messagesAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
     final unreadCount = messagesAsync.maybeWhen(
         data: (d) => d.where((m) => !m.isRead).length, orElse: () => 0);
+
+    if (messagesAsync.isLoading) {
+      return const MessageTabSkeleton();
+    }
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,

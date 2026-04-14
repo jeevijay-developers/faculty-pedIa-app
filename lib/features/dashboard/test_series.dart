@@ -7,6 +7,7 @@ import '../../shared/models/test_series_model.dart';
 import '../../shared/models/hamburger_model.dart';
 import '../../shared/widgets/state_widgets.dart';
 import '../auth/providers/auth_provider.dart';
+import '../../loading/skeleton.test.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -56,9 +57,45 @@ final studentTestSeriesProvider =
       ? payload['data'] as Map<String, dynamic>
       : payload;
 
-  final rawSeries = data['testSeries'] ?? data['tests'];
-  if (rawSeries is! List) return const [];
+  final seriesById = <String, TestSeries>{};
 
+  final rawSeries = data['testSeries'] ?? data['tests'];
+  if (rawSeries is List) {
+    final ids = _extractTestSeriesIds(rawSeries);
+    if (ids.isNotEmpty) {
+      final enrolledSeries = await Future.wait(ids.map((id) async {
+        final r = await api.get('/api/test-series/$id');
+        return _extractTestSeriesFromResponse(r.data);
+      }));
+      for (final series in enrolledSeries) {
+        if (series.id.isNotEmpty) seriesById[series.id] = series;
+      }
+    }
+  }
+
+  final courseIds = _extractCourseIds(data);
+  if (courseIds.isNotEmpty) {
+    for (final courseId in courseIds) {
+      final r = await api.get('/api/test-series/course/$courseId');
+      final seriesList = _extractTestSeriesList(r.data);
+      for (final series in seriesList) {
+        if (series.id.isNotEmpty && !seriesById.containsKey(series.id)) {
+          seriesById[series.id] = series;
+        }
+      }
+    }
+  }
+
+  if (seriesById.isEmpty) return const [];
+
+  final items = await Future.wait(
+    seriesById.values.map((series) => _buildSeriesItem(api, series)),
+  );
+
+  return items.where((i) => i.series.id.isNotEmpty).toList();
+});
+
+List<String> _extractTestSeriesIds(List rawSeries) {
   final ids = <String>{};
   for (final entry in rawSeries) {
     if (entry is Map && entry['testSeriesId'] != null) {
@@ -70,57 +107,100 @@ final studentTestSeriesProvider =
       }
     }
   }
-  if (ids.isEmpty) return const [];
+  return ids.toList();
+}
 
-  final items = await Future.wait(ids.map((id) async {
-    final r = await api.get('/api/test-series/$id');
-    final p = r.data is Map<String, dynamic>
-        ? r.data as Map<String, dynamic>
+List<String> _extractCourseIds(Map<String, dynamic> data) {
+  final rawCourses = data['courses'];
+  if (rawCourses is! List) return const [];
+  final ids = <String>{};
+  for (final entry in rawCourses) {
+    if (entry is! Map<String, dynamic>) continue;
+    final cd = entry['courseId'] is Map<String, dynamic>
+        ? entry['courseId'] as Map<String, dynamic>
         : <String, dynamic>{};
+    final courseId =
+        cd['_id']?.toString() ?? entry['courseId']?.toString() ?? '';
+    if (courseId.isNotEmpty) ids.add(courseId);
+  }
+  return ids.toList();
+}
 
-    Map<String, dynamic> sd = {};
-    if (p['testSeries'] is Map) {
-      sd = Map<String, dynamic>.from(p['testSeries']);
-    } else if (p['data'] is Map) {
-      final nested = p['data'] as Map;
-      sd = nested['testSeries'] is Map
-          ? Map<String, dynamic>.from(nested['testSeries'])
-          : Map<String, dynamic>.from(nested);
-    } else {
-      sd = Map<String, dynamic>.from(p);
-    }
+TestSeries _extractTestSeriesFromResponse(dynamic data) {
+  final p = data is Map<String, dynamic>
+      ? data as Map<String, dynamic>
+      : <String, dynamic>{};
 
-    final series = TestSeries.fromJson(sd);
-    final tr = await api.get('/api/tests/test-series/$id',
-        queryParameters: const {'limit': 200});
-    final tp = tr.data is Map<String, dynamic>
-        ? tr.data as Map<String, dynamic>
-        : <String, dynamic>{};
-    final td = tp['data'] is Map<String, dynamic>
-        ? tp['data'] as Map<String, dynamic>
-        : <String, dynamic>{};
-    final rawTests = (td['tests'] ?? tp['tests']) is List
-        ? (td['tests'] ?? tp['tests']) as List
-        : const <dynamic>[];
+  Map<String, dynamic> sd = {};
+  if (p['testSeries'] is Map) {
+    sd = Map<String, dynamic>.from(p['testSeries']);
+  } else if (p['data'] is Map) {
+    final nested = p['data'] as Map;
+    sd = nested['testSeries'] is Map
+        ? Map<String, dynamic>.from(nested['testSeries'])
+        : Map<String, dynamic>.from(nested);
+  } else {
+    sd = Map<String, dynamic>.from(p);
+  }
 
-    final apiTests = rawTests
+  return TestSeries.fromJson(sd);
+}
+
+List<TestSeries> _extractTestSeriesList(dynamic data) {
+  if (data is! Map) return [];
+  final payload = data['data'] ?? data;
+  if (payload is Map && payload['testSeries'] is List) {
+    return (payload['testSeries'] as List)
         .whereType<Map<String, dynamic>>()
-        .map(Test.fromJson)
-        .where((t) => t.id.isNotEmpty)
+        .map(TestSeries.fromJson)
         .toList();
-    final seriesTests =
-        (series.tests ?? const <Test>[]).where((t) => t.id.isNotEmpty).toList();
-    final tests = apiTests.isNotEmpty ? apiTests : seriesTests;
+  }
+  if (payload is List) {
+    return payload
+        .whereType<Map<String, dynamic>>()
+        .map(TestSeries.fromJson)
+        .toList();
+  }
+  if (data['testSeries'] is List) {
+    return (data['testSeries'] as List)
+        .whereType<Map<String, dynamic>>()
+        .map(TestSeries.fromJson)
+        .toList();
+  }
+  return [];
+}
 
-    return StudentTestSeriesItem(
-      series: series,
-      totalTests: tests.isNotEmpty ? tests.length : (series.totalTests ?? 0),
-      tests: tests,
-    );
-  }));
+Future<StudentTestSeriesItem> _buildSeriesItem(
+  ApiService api,
+  TestSeries series,
+) async {
+  final tr = await api.get('/api/tests/test-series/${series.id}',
+      queryParameters: const {'limit': 200});
+  final tp = tr.data is Map<String, dynamic>
+      ? tr.data as Map<String, dynamic>
+      : <String, dynamic>{};
+  final td = tp['data'] is Map<String, dynamic>
+      ? tp['data'] as Map<String, dynamic>
+      : <String, dynamic>{};
+  final rawTests = (td['tests'] ?? tp['tests']) is List
+      ? (td['tests'] ?? tp['tests']) as List
+      : const <dynamic>[];
 
-  return items.where((i) => i.series.id.isNotEmpty).toList();
-});
+  final apiTests = rawTests
+      .whereType<Map<String, dynamic>>()
+      .map(Test.fromJson)
+      .where((t) => t.id.isNotEmpty)
+      .toList();
+  final seriesTests =
+      (series.tests ?? const <Test>[]).where((t) => t.id.isNotEmpty).toList();
+  final tests = apiTests.isNotEmpty ? apiTests : seriesTests;
+
+  return StudentTestSeriesItem(
+    series: series,
+    totalTests: tests.isNotEmpty ? tests.length : (series.totalTests ?? 0),
+    tests: tests,
+  );
+}
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 class StudentTestSeriesScreen extends ConsumerWidget {
@@ -134,6 +214,10 @@ class StudentTestSeriesScreen extends ConsumerWidget {
     final seriesAsync = ref.watch(studentTestSeriesProvider);
     final totalCount =
         seriesAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
+
+    if (seriesAsync.isLoading) {
+      return const StudentTestSeriesSkeleton();
+    }
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,
@@ -333,7 +417,7 @@ class _TestSeriesCard extends StatefulWidget {
 }
 
 class _TestSeriesCardState extends State<_TestSeriesCard> {
-  bool _expanded = true;
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {

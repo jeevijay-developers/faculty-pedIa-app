@@ -29,7 +29,6 @@ class _ExamData {
   final IconData icon;
   final List<String> subjects;
   final String tag;
-  final String stats;
 
   const _ExamData({
     required this.name,
@@ -39,7 +38,6 @@ class _ExamData {
     required this.icon,
     required this.subjects,
     required this.tag,
-    required this.stats,
   });
 }
 
@@ -54,7 +52,6 @@ const _exams = [
     icon: Icons.science_rounded,
     subjects: ['Physics', 'Chemistry', 'Mathematics'],
     tag: 'Engineering',
-    stats: '12L+ Aspirants',
   ),
   _ExamData(
     name: 'NEET',
@@ -65,7 +62,6 @@ const _exams = [
     icon: Icons.medical_services_rounded,
     subjects: ['Physics', 'Chemistry', 'Biology'],
     tag: 'Medical',
-    stats: '18L+ Aspirants',
   ),
   _ExamData(
     name: 'CBSE',
@@ -76,7 +72,6 @@ const _exams = [
     icon: Icons.school_rounded,
     subjects: ['Science', 'Commerce', 'Arts', 'All Subjects'],
     tag: 'Board Exam',
-    stats: '30L+ Students',
   ),
 ];
 
@@ -391,72 +386,43 @@ class _ExamCardState extends State<_ExamCard>
 
                     const SizedBox(height: 14),
 
-                    // stats + CTA
-                    Row(
-                      children: [
-                        // aspirants
-                        Row(
-                          children: [
-                            Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withOpacity(0.06)
-                                    : kPrimaryBg,
-                                borderRadius: BorderRadius.circular(9),
+                    // CTA
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () => context.push(e.route),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: kPrimary,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: kPrimary.withOpacity(0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
                               ),
-                              child: const Icon(Icons.people_rounded,
-                                  size: 15, color: kPrimary),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              e.stats,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? kText2Dark : kText2Light,
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Explore',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        // Explore button — solid blue, no gradient
-                        GestureDetector(
-                          onTap: () => context.push(e.route),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: kPrimary,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: kPrimary.withOpacity(0.25),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Explore',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                SizedBox(width: 6),
-                                Icon(Icons.arrow_forward_rounded,
-                                    color: Colors.white, size: 14),
-                              ],
-                            ),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_rounded,
+                                  color: Colors.white, size: 14),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

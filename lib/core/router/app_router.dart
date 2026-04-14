@@ -42,11 +42,15 @@ import '../../features/dashboard/result_tab.dart';
 import '../../features/dashboard/webinar_tab.dart';
 import '../../features/post/all_posts.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/help/help.dart';
+import '../../features/privacy/privacy.dart';
+import '../utils/no_internet_dialog.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     redirect: (context, state) {
@@ -183,6 +187,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => NoTransitionPage(
               key: UniqueKey(),
               child: const ProfileScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/help',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const HelpScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/privacy',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: UniqueKey(),
+              child: const PrivacyScreen(),
             ),
           ),
         ],

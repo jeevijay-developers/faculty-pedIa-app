@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,6 +57,7 @@ class EducatorsScreen extends ConsumerStatefulWidget {
 
 class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _searchQuery = '';
   String _examFilter = 'All Exams';
 
@@ -62,8 +65,17 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim());
+    });
   }
 
   List<Educator> _applyFilters(List<Educator> list) {
@@ -289,7 +301,7 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
             ),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              onChanged: _onSearchChanged,
               style: TextStyle(
                 fontSize: 14,
                 color: isDark ? kText1Dark : kText1Light,
@@ -305,6 +317,7 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? GestureDetector(
                         onTap: () {
+                          _searchDebounce?.cancel();
                           _searchCtrl.clear();
                           setState(() => _searchQuery = '');
                         },

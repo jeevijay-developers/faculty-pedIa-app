@@ -135,7 +135,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                               (n) => _NotificationTile(
                                 notification: n,
                                 isDark: isDark,
-                                onTap: () => _handleTap(ref, n),
+                                onTap: () => _handleTap(context, ref, n),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -409,12 +409,124 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  Future<void> _handleTap(WidgetRef ref, AppNotification notification) async {
+  Future<void> _handleTap(
+    BuildContext context,
+    WidgetRef ref,
+    AppNotification notification,
+  ) async {
     if (!notification.isRead) {
       await _markAsRead(ref, notification.id);
     }
     ref.invalidate(notificationsProvider);
     ref.invalidate(unreadCountProvider);
+
+    final route = _resolveNotificationRoute(notification);
+    if (route != null && route.isNotEmpty && context.mounted) {
+      _openRoute(context, route);
+    }
+  }
+
+  void _openRoute(BuildContext context, String route) {
+    final useGo = route.startsWith('/dashboard') ||
+        route == '/home' ||
+        route == '/student-courses' ||
+        route == '/courses' ||
+        route == '/posts' ||
+        route == '/test-series' ||
+        route == '/webinars';
+    if (useGo) {
+      context.go(route);
+    } else {
+      context.push(route);
+    }
+  }
+
+  String? _resolveNotificationRoute(AppNotification notification) {
+    final meta = notification.metadata;
+    final resourceRoute = meta?.resourceRoute;
+    final link = meta?.link;
+    final type = (meta?.resourceType ?? notification.type).toLowerCase();
+    final routeId =
+        _extractIdFromRoute(resourceRoute) ?? _extractIdFromRoute(link);
+    final id = meta?.resourceId ?? routeId;
+
+    if (resourceRoute != null && resourceRoute.isNotEmpty) {
+      final normalized = _normalizeRoute(resourceRoute, type, id);
+      if (normalized != null) return normalized;
+    }
+
+    if (link != null && link.isNotEmpty) {
+      final normalized = _normalizeRoute(link, type, id);
+      if (normalized != null) return normalized;
+    }
+
+    switch (type) {
+      case 'course':
+        return id != null && id.isNotEmpty ? '/course/$id' : '/courses';
+      case 'test_series':
+      case 'testseries':
+      case 'test':
+        return id != null && id.isNotEmpty
+            ? '/test-series/$id'
+            : '/test-series';
+      case 'webinar':
+        return id != null && id.isNotEmpty ? '/webinar/$id' : '/webinars';
+      case 'live_class':
+      case 'live':
+        return id != null && id.isNotEmpty
+            ? '/webinar/$id'
+            : '/dashboard/webinars';
+      case 'post':
+        return '/posts';
+      default:
+        return null;
+    }
+  }
+
+  String? _normalizeRoute(String raw, String type, String? id) {
+    final uri = Uri.tryParse(raw);
+    final path = uri?.path ?? raw;
+    if (!path.startsWith('/')) return null;
+
+    if (path.startsWith('/student-test-series/')) {
+      final fallbackId = id ?? _extractIdFromRoute(path);
+      return fallbackId != null && fallbackId.isNotEmpty
+          ? '/test-series/$fallbackId'
+          : '/test-series';
+    }
+
+    if (path.startsWith('/test-series') && id != null && id.isNotEmpty) {
+      return '/test-series/$id';
+    }
+    if (path.startsWith('/course') && id != null && id.isNotEmpty) {
+      return '/course/$id';
+    }
+    if (path.startsWith('/webinar') && id != null && id.isNotEmpty) {
+      return '/webinar/$id';
+    }
+    if (path.startsWith('/posts')) return '/posts';
+
+    if (type == 'test_series' || type == 'testseries' || type == 'test') {
+      return id != null && id.isNotEmpty ? '/test-series/$id' : '/test-series';
+    }
+    if (type == 'course') {
+      return id != null && id.isNotEmpty ? '/course/$id' : '/courses';
+    }
+    if (type == 'webinar' || type == 'live' || type == 'live_class') {
+      return id != null && id.isNotEmpty ? '/webinar/$id' : '/webinars';
+    }
+    if (type == 'post') return '/posts';
+
+    return path;
+  }
+
+  String? _extractIdFromRoute(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final uri = Uri.tryParse(raw);
+    final path = uri?.path ?? raw;
+    final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+    if (segments.isEmpty) return null;
+    return segments.last;
   }
 
   Future<void> _markAsRead(WidgetRef ref, String id) async {

@@ -5,6 +5,7 @@ import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/hamburger_model.dart';
 import '../../shared/widgets/state_widgets.dart';
+import '../../loading/skeleton.dashboard.dart';
 import '../auth/providers/auth_provider.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
@@ -127,8 +128,7 @@ class StudentDashboardScreen extends ConsumerWidget {
       backgroundColor: isDark ? kBgDark : kBgLight,
       drawer: const HamburgerDrawer(),
       body: dashboardAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: kPrimary)),
+        loading: () => const StudentDashboardSkeleton(),
         error: (e, _) => ErrorStateWidget(
           message: e.toString(),
           onRetry: () => ref.invalidate(studentDashboardProvider),

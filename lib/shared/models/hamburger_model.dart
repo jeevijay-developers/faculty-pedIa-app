@@ -23,7 +23,6 @@ class HamburgerDrawer extends ConsumerWidget {
         Icons.menu_book_rounded, 'My Courses', '/student-courses', false),
     _DrawerItem(Icons.assignment_rounded, 'Test Series',
         '/dashboard/test-series', false),
-    _DrawerItem(Icons.live_tv_rounded, 'Live Classes', null, false),
     _DrawerItem(
         Icons.videocam_rounded, 'Webinars', '/dashboard/webinars', false),
     _DrawerItem(Icons.task_alt_rounded, 'Results', '/results', false),
@@ -237,8 +236,11 @@ class HamburgerDrawer extends ConsumerWidget {
         color: Colors.grey.withOpacity(0.12),
       );
 
-  void _navigate(BuildContext context, _DrawerItem item) {
+  Future<void> _navigate(BuildContext context, _DrawerItem item) async {
     Navigator.pop(context);
+    // Allow the drawer close animation to finish before routing.
+    await Future.delayed(const Duration(milliseconds: 220));
+    if (!context.mounted) return;
     if (item.route != null) {
       context.go(item.route!);
     }

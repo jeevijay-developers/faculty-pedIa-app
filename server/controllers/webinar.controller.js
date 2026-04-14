@@ -200,6 +200,7 @@ export const getAllWebinars = async (req, res) => {
 export const getWebinarById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { studentId } = req.query;
 
     const webinar = await Webinar.findById(id)
       .populate("educatorID", "name email profile")
@@ -212,10 +213,21 @@ export const getWebinarById = async (req, res) => {
       });
     }
 
+    const payload = webinar.toObject ? webinar.toObject() : webinar;
+    if (studentId) {
+      const enrolled = Array.isArray(payload.studentEnrolled)
+        ? payload.studentEnrolled.some((s) => {
+            const sid = s?._id?.toString?.() ?? s?.toString?.();
+            return sid === studentId;
+          })
+        : false;
+      payload.isEnrolled = enrolled;
+    }
+
     res.status(200).json({
       success: true,
       message: "Webinar retrieved successfully",
-      data: webinar,
+      data: payload,
     });
   } catch (error) {
     console.error("Error fetching webinar:", error);
@@ -231,6 +243,7 @@ export const getWebinarById = async (req, res) => {
 export const getWebinarBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
+    const { studentId } = req.query;
 
     const webinar = await Webinar.findOne({ slug, isActive: true })
       .populate("educatorID", "name email profile")
@@ -243,10 +256,21 @@ export const getWebinarBySlug = async (req, res) => {
       });
     }
 
+    const payload = webinar.toObject ? webinar.toObject() : webinar;
+    if (studentId) {
+      const enrolled = Array.isArray(payload.studentEnrolled)
+        ? payload.studentEnrolled.some((s) => {
+            const sid = s?._id?.toString?.() ?? s?.toString?.();
+            return sid === studentId;
+          })
+        : false;
+      payload.isEnrolled = enrolled;
+    }
+
     res.status(200).json({
       success: true,
       message: "Webinar retrieved successfully",
-      data: webinar,
+      data: payload,
     });
   } catch (error) {
     console.error("Error fetching webinar:", error);

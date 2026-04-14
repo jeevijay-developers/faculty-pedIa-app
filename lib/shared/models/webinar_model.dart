@@ -84,7 +84,7 @@ class Webinar {
               ? DateTime.tryParse(json['startTime'])
               : null),
       duration: _parseInt(json['duration']),
-      meetingLink: json['meetingLink'] ?? json['link'],
+      meetingLink: json['meetingLink'] ?? json['webinarLink'] ?? json['link'],
       maxAttendees: _parseInt(json['maxAttendees']),
       registeredCount: _parseInt(json['registeredCount'] ?? json['attendees']),
       status: json['status'],

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import '../../shared/widgets/state_widgets.dart';
 import '../../shared/widgets/user_widgets.dart';
 import '../../shared/models/hamburger_model.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../loading/skeleton.follow.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -138,11 +141,21 @@ class FollowingTabScreen extends ConsumerStatefulWidget {
 
 class _FollowingTabScreenState extends ConsumerState<FollowingTabScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override
@@ -151,6 +164,10 @@ class _FollowingTabScreenState extends ConsumerState<FollowingTabScreen> {
     final educatorsAsync = ref.watch(followingEducatorsProvider);
     final totalCount =
         educatorsAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
+
+    if (educatorsAsync.isLoading) {
+      return const FollowingTabSkeleton();
+    }
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,
@@ -373,7 +390,7 @@ class _FollowingTabScreenState extends ConsumerState<FollowingTabScreen> {
       ),
       child: TextField(
         controller: _searchCtrl,
-        onChanged: (_) => setState(() {}),
+        onChanged: _onSearchChanged,
         style: TextStyle(
           fontSize: 14,
           color: isDark ? kText1Dark : kText1Light,
