@@ -4,6 +4,8 @@ class Webinar {
   final String? description;
   final String? slug;
   final WebinarImage? image;
+  final String? introVideo;
+  final String? introVideoVimeoUri;
   final List<String> subject;
   final List<String> specialization;
   final String? educatorId;
@@ -28,6 +30,8 @@ class Webinar {
     this.description,
     this.slug,
     this.image,
+    this.introVideo,
+    this.introVideoVimeoUri,
     this.subject = const [],
     this.specialization = const [],
     this.educatorId,
@@ -69,6 +73,8 @@ class Webinar {
       slug: json['slug'],
       image:
           json['image'] != null ? WebinarImage.fromJson(json['image']) : null,
+      introVideo: json['introVideo'] ?? json['introVideoLink'],
+      introVideoVimeoUri: json['introVideoVimeoUri'],
       subject: _parseStringList(json['subject']),
       specialization:
           _parseStringList(json['specialization'] ?? json['specializations']),
@@ -151,6 +157,8 @@ class Webinar {
       'description': description,
       'slug': slug,
       'image': image?.toJson(),
+      'introVideo': introVideo,
+      'introVideoVimeoUri': introVideoVimeoUri,
       'subject': subject,
       'specialization': specialization,
       'educatorId': educatorId,

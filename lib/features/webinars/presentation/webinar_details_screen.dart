@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -214,10 +216,12 @@ class WebinarDetailsScreen extends ConsumerStatefulWidget {
 
 class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
   late final Razorpay _razorpay;
+  WebViewController? _vimeoController;
   bool _isEnrolling = false;
   bool _descExpanded = false;
   String? _pendingIntentId;
   bool _hasEnrolled = false;
+  String? _vimeoUrl;
 
   @override
   void initState() {
@@ -231,6 +235,7 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
   @override
   void dispose() {
     _razorpay.clear();
+    _vimeoController = null;
     super.dispose();
   }
 
@@ -313,6 +318,12 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
           ],
           _buildInfoGrid(webinar, isFree, isDark),
           const SizedBox(height: 18),
+          if (_hasIntroVideo(webinar)) ...[
+            _sectionLabel('Webinar Intro Video', isDark),
+            const SizedBox(height: 10),
+            _buildIntroVideo(webinar, isDark),
+            const SizedBox(height: 18),
+          ],
           _sectionLabel('Webinar Information', isDark),
           const SizedBox(height: 10),
           _buildInfoTable(webinar, isDark),
@@ -560,6 +571,68 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Intro Video ─────────────────────────────────────────────────────────
+  bool _hasIntroVideo(Webinar webinar) {
+    final resolvedVideoUrl = _resolveUrl(webinar.introVideo ?? '');
+    final vimeoUri = webinar.introVideoVimeoUri ?? '';
+    return resolvedVideoUrl.isNotEmpty || vimeoUri.isNotEmpty;
+  }
+
+  void _ensureVimeoController(Webinar webinar) {
+    final embedUrl = _resolveVimeoEmbedUrl(
+      webinar.introVideo ?? '',
+      webinar.introVideoVimeoUri,
+    );
+    if (embedUrl.isEmpty) return;
+    if (_vimeoController != null && _vimeoUrl == embedUrl) return;
+    _vimeoUrl = embedUrl;
+    _vimeoController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..loadRequest(Uri.parse(embedUrl));
+  }
+
+  Widget _buildIntroVideo(Webinar webinar, bool isDark) {
+    _ensureVimeoController(webinar);
+    final embedUrl = _resolveVimeoEmbedUrl(
+      webinar.introVideo ?? '',
+      webinar.introVideoVimeoUri,
+    );
+    if (embedUrl.isNotEmpty && _vimeoController != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          height: 210,
+          width: double.infinity,
+          child: WebViewWidget(controller: _vimeoController!),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 210,
+        width: double.infinity,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [kSurfaceDark, const Color(0xFF0B1220)]
+                  : [kPrimaryBg, kPrimaryMid],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Center(
+            child: Icon(Icons.play_circle_fill_rounded,
+                color: Colors.white54, size: 56),
+          ),
+        ),
       ),
     );
   }
@@ -1021,6 +1094,26 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
         color: isDark ? kText1Dark : kText1Light,
       ),
     );
+  }
+
+  String _resolveUrl(String url) {
+    if (url.isEmpty) return '';
+    final uri = Uri.tryParse(url);
+    if (uri == null) return '';
+    if (uri.hasScheme) return url;
+    return url.startsWith('/')
+        ? '${AppConfig.baseUrl}$url'
+        : '${AppConfig.baseUrl}/$url';
+  }
+
+  String _resolveVimeoEmbedUrl(String url, String? vimeoUri) {
+    final resolved = _resolveUrl(url);
+    if (resolved.contains('player.vimeo.com')) return resolved;
+    final uriSource = (vimeoUri ?? '').isNotEmpty ? vimeoUri! : resolved;
+    final match = RegExp(r'(\d{6,})').firstMatch(uriSource);
+    final videoId = match?.group(1);
+    if (videoId == null || videoId.isEmpty) return '';
+    return 'https://player.vimeo.com/video/$videoId?playsinline=1&autoplay=0';
   }
 
   // ── Bottom Bar ────────────────────────────────────────────────────────────
