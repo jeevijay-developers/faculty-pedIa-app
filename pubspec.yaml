@@ -94,6 +94,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/adi-registration.properties
   
 #  fonts:
 #    - family: Geist
