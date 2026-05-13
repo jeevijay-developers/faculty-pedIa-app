@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/models/course_model.dart';
+import '../../../shared/widgets/user_widgets.dart';
 import '../../auth/providers/auth_provider.dart';
 
 // ── Blue-600 palette (consistent across all screens) ──────────────────────────
@@ -40,6 +44,7 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
   bool _isEnrolling = false;
   bool _isSubmittingReview = false;
   bool _descExpanded = false;
+  String? _educatorPhone;
 
   final TextEditingController _reviewController = TextEditingController();
   int _selectedRating = 0;
@@ -93,7 +98,34 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
         await _initVideoController(introUrl);
       }
     }
+
+    final educatorId = course.educator?.id ?? '';
+    if (educatorId.isNotEmpty) {
+      final phone = await _fetchEducatorPhone(educatorId);
+      if (mounted) setState(() => _educatorPhone = phone);
+    }
     return course;
+  }
+
+  Future<String?> _fetchEducatorPhone(String educatorId) async {
+    try {
+      final response = await ApiService().get('/api/educators/$educatorId');
+      final data = response.data;
+      Map<String, dynamic> ed = {};
+      if (data is Map &&
+          data['data'] is Map &&
+          data['data']['educator'] != null) {
+        ed = Map<String, dynamic>.from(data['data']['educator']);
+      } else if (data is Map && data['educator'] != null) {
+        ed = Map<String, dynamic>.from(data['educator']);
+      } else if (data is Map) {
+        ed = Map<String, dynamic>.from(data);
+      }
+      final phone = ed['mobileNumber'] ?? ed['mobile'];
+      return phone?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _initVideoController(String url) async {
@@ -151,6 +183,11 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
                   children: [
                     // ── Tags + Title + Desc ─────────────────────────────────
                     _buildTitleSection(context, course, isDark),
+
+                    if (_shouldShowEducator(course)) ...[
+                      _buildEducatorCard(context, course, isDark),
+                      const SizedBox(height: 16),
+                    ],
 
                     // ── Intro Video ─────────────────────────────────────────
                     if (_hasIntroVideo(course))
@@ -220,7 +257,9 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
         ),
       ),
       actions: [
-        _appBarIconBtn(Icons.share_rounded, isDark, () {}),
+        _appBarIconBtn(Icons.share_rounded, isDark, () {
+          _shareCourse(course);
+        }),
         const SizedBox(width: 8),
       ],
       bottom: PreferredSize(
@@ -303,6 +342,121 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  bool _shouldShowEducator(Course course) {
+    final educator = course.educator;
+    if (educator == null) return false;
+    final hasName = educator.name != null && educator.name!.trim().isNotEmpty;
+    final hasId = educator.id != null && educator.id!.trim().isNotEmpty;
+    return hasName || hasId;
+  }
+
+  Widget _buildEducatorCard(BuildContext context, Course course, bool isDark) {
+    final educator = course.educator;
+    if (educator == null) return const SizedBox.shrink();
+    final educatorName = (educator.name ?? '').trim();
+    final educatorId = (educator.id ?? '').trim();
+    final imageUrl = _resolveUrl(educator.profilePicture ?? '');
+    final canWhatsApp = _educatorPhone != null && _educatorPhone!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: educatorId.isEmpty
+          ? null
+          : () => context.push('/educator/$educatorId'),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryMid,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: kPrimary, width: 1.5),
+              ),
+              child: UserAvatar(
+                imageUrl: imageUrl,
+                name: educatorName.isEmpty ? 'Educator' : educatorName,
+                size: 50,
+                showBorder: false,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    educatorName.isEmpty ? 'Educator' : educatorName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    educatorId.isEmpty
+                        ? 'Profile unavailable'
+                        : 'View full profile',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: educatorId.isEmpty
+                          ? (isDark ? Colors.white38 : const Color(0xFF94A3B8))
+                          : kPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canWhatsApp)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => _openWhatsApp(_educatorPhone ?? ''),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(FontAwesomeIcons.whatsapp,
+                        size: 16, color: Color(0xFF22C55E)),
+                  ),
+                ),
+              ),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: kPrimaryBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.arrow_forward_ios_rounded,
+                  size: 13, color: educatorId.isEmpty ? kPrimaryMid : kPrimary),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -574,10 +728,24 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: stats
-            .map((s) => Expanded(child: _StatCard(stat: s, isDark: isDark)))
-            .toList(),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _StatCard(stat: stats[0], isDark: isDark)),
+              const SizedBox(width: 10),
+              Expanded(child: _StatCard(stat: stats[1], isDark: isDark)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _StatCard(stat: stats[2], isDark: isDark)),
+              const SizedBox(width: 10),
+              Expanded(child: _StatCard(stat: stats[3], isDark: isDark)),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1167,6 +1335,33 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
     return 'https://player.vimeo.com/video/$videoId?playsinline=1&autoplay=0';
   }
 
+  Future<void> _openWhatsApp(String phone) async {
+    final url = _buildWhatsAppUrl(phone);
+    if (url.isEmpty) {
+      _showSnack('WhatsApp number not available.');
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      _showSnack('Unable to open WhatsApp.');
+    }
+  }
+
+  String _buildWhatsAppUrl(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    if (digits.length == 10) return 'https://wa.me/91$digits';
+    if (digits.length == 11 && digits.startsWith('0')) {
+      return 'https://wa.me/91${digits.substring(1)}';
+    }
+    return 'https://wa.me/$digits';
+  }
+
   bool _canReviewCourse(AuthState authState, Course course) {
     if (!authState.isAuthenticated || !authState.isStudent) return false;
     final student = authState.student;
@@ -1353,6 +1548,23 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
       backgroundColor: const Color(0xFF1E293B),
     ));
   }
+
+  Future<void> _shareCourse(Course course) async {
+    final imageUrl = _resolveUrl(course.imageUrl);
+    final buffer = StringBuffer();
+    if (imageUrl.isNotEmpty) {
+      buffer.writeln(imageUrl);
+      buffer.writeln();
+    }
+    buffer.writeln('Check this course on FacultyPedia!');
+    buffer.writeln();
+    buffer.writeln('Course Name: ${course.title}');
+    buffer.writeln();
+    buffer.writeln('Open directly in the app:');
+    buffer.writeln('https://facultypedia.app/course/${course.id}');
+
+    await Share.share(buffer.toString());
+  }
 }
 
 // ── Data models ────────────────────────────────────────────────────────────────
@@ -1379,7 +1591,6 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,

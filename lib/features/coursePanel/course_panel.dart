@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../shared/models/test_series_model.dart';
 
 class CoursePanelScreen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
   late Future<List<CourseVideo>> _videosFuture;
   late Future<List<StudyMaterialItem>> _materialsFuture;
   late Future<_CourseTestSeriesData> _testsFuture;
+  late Future<List<_LiveClassItem>> _liveClassesFuture;
 
   @override
   void initState() {
@@ -32,6 +35,7 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
     _videosFuture = _fetchVideos();
     _materialsFuture = _fetchMaterials();
     _testsFuture = _fetchTestsTabData();
+    _liveClassesFuture = _fetchLiveClasses();
   }
 
   @override
@@ -108,6 +112,20 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
     return false;
   }
 
+  Future<List<_LiveClassItem>> _fetchLiveClasses() async {
+    final api = ApiService();
+    final response = await api.get(
+      '/api/live-classes',
+      queryParameters: {
+        'isCourseSpecific': true,
+        'includePast': true,
+        'limit': 100,
+      },
+    );
+    final classes = _extractLiveClasses(response.data);
+    return classes.where((item) => item.courseId == widget.courseId).toList();
+  }
+
   List<CourseVideo> _extractVideos(dynamic data) {
     if (data is! Map) return [];
     final payload = data['data'] ?? data;
@@ -163,6 +181,30 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
       return (data['testSeries'] as List)
           .whereType<Map<String, dynamic>>()
           .map(TestSeries.fromJson)
+          .toList();
+    }
+    return [];
+  }
+
+  List<_LiveClassItem> _extractLiveClasses(dynamic data) {
+    if (data is! Map) return [];
+    final payload = data['data'] ?? data;
+    if (payload is Map && payload['liveClasses'] is List) {
+      return (payload['liveClasses'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_LiveClassItem.fromJson)
+          .toList();
+    }
+    if (payload is List) {
+      return payload
+          .whereType<Map<String, dynamic>>()
+          .map(_LiveClassItem.fromJson)
+          .toList();
+    }
+    if (data['liveClasses'] is List) {
+      return (data['liveClasses'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_LiveClassItem.fromJson)
           .toList();
     }
     return [];
@@ -246,6 +288,9 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
                         builder: (_, __) {
                           if (controller.index == 1) {
                             return _buildMaterialsTab();
+                          }
+                          if (controller.index == 2) {
+                            return _buildLiveTab();
                           }
                           if (controller.index == 3) {
                             return _buildTestsTab();
@@ -434,12 +479,56 @@ class _CoursePanelScreenState extends State<CoursePanelScreen> {
     );
   }
 
+  Widget _buildLiveTab() {
+    return FutureBuilder<List<_LiveClassItem>>(
+      future: _liveClassesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _PanelLoader();
+        }
+        if (snapshot.hasError) {
+          return const _EmptyPanel(message: 'Unable to load live classes.');
+        }
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) {
+          return const _EmptyPanel(message: 'No live classes scheduled yet.');
+        }
+        return Column(
+          children: items
+              .map(
+                (item) => _LiveClassTile(
+                  item: item,
+                  onJoin: item.joinUrl.isNotEmpty
+                      ? () => _openLiveLink(context, item.joinUrl)
+                      : null,
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
   void _openVideo(BuildContext context, CourseVideo item) {
     if (item.primaryLink.isEmpty) return;
     context.push('/video-player', extra: {
       'title': item.title,
       'url': item.primaryLink,
     });
+  }
+
+  Future<void> _openLiveLink(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open live class link.')),
+      );
+    }
   }
 }
 
@@ -794,6 +883,107 @@ class _TestSeriesTile extends StatelessWidget {
   }
 }
 
+class _LiveClassTile extends StatelessWidget {
+  final _LiveClassItem item;
+  final VoidCallback? onJoin;
+
+  const _LiveClassTile({required this.item, required this.onJoin});
+
+  @override
+  Widget build(BuildContext context) {
+    final timing = item.classTiming;
+    final timingLabel = timing != null
+        ? DateFormatter.formatDateTime(timing)
+        : 'Schedule to be announced';
+    final status =
+        item.isLive ? 'LIVE' : (item.isUpcoming ? 'UPCOMING' : 'ENDED');
+    final statusColor = item.isLive
+        ? const Color(0xFFDC2626)
+        : (item.isUpcoming ? AppColors.primary : AppColors.grey500);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE9E6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.live_tv_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.grey900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  timingLabel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.grey500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onJoin != null)
+            TextButton(
+              onPressed: onJoin,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                textStyle:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              child: const Text('Join'),
+            )
+          else
+            const Icon(Icons.lock_rounded, color: AppColors.grey400),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReadyForQuizCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -975,6 +1165,77 @@ class StudyMaterialDoc {
       url: json['url']?.toString() ?? '',
       fileType: json['fileType']?.toString() ?? 'PDF',
       sizeInBytes: (json['sizeInBytes'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class _LiveClassItem {
+  final String id;
+  final String title;
+  final DateTime? classTiming;
+  final int durationMinutes;
+  final String introVideo;
+  final String recordingUrl;
+  final String courseId;
+
+  const _LiveClassItem({
+    required this.id,
+    required this.title,
+    required this.classTiming,
+    required this.durationMinutes,
+    required this.introVideo,
+    required this.recordingUrl,
+    required this.courseId,
+  });
+
+  bool get isUpcoming {
+    if (classTiming == null) return false;
+    return classTiming!.isAfter(DateTime.now());
+  }
+
+  bool get isLive {
+    if (classTiming == null || durationMinutes <= 0) return false;
+    final now = DateTime.now();
+    final endTime = classTiming!.add(Duration(minutes: durationMinutes));
+    return now.isAfter(classTiming!) && now.isBefore(endTime);
+  }
+
+  String get joinUrl {
+    if (introVideo.isNotEmpty) return introVideo;
+    if (recordingUrl.isNotEmpty) return recordingUrl;
+    return '';
+  }
+
+  factory _LiveClassItem.fromJson(Map<String, dynamic> json) {
+    final assignInCourse = json['assignInCourse'];
+    String courseId = '';
+    if (assignInCourse is Map) {
+      courseId = assignInCourse['_id']?.toString() ??
+          assignInCourse['id']?.toString() ??
+          '';
+    } else if (assignInCourse is String) {
+      courseId = assignInCourse;
+    }
+
+    final timingValue = json['classTiming'] ??
+        json['timing'] ??
+        json['scheduledAt'] ??
+        json['startAt'];
+
+    return _LiveClassItem(
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      title: json['liveClassTitle']?.toString() ??
+          json['title']?.toString() ??
+          'Live Class',
+      classTiming: timingValue != null
+          ? DateTime.tryParse(timingValue.toString())
+          : null,
+      durationMinutes: (json['classDuration'] as num?)?.toInt() ??
+          (json['duration'] as num?)?.toInt() ??
+          0,
+      introVideo: json['introVideo']?.toString() ?? '',
+      recordingUrl: json['recordingURL']?.toString() ?? '',
+      courseId: courseId,
     );
   }
 }

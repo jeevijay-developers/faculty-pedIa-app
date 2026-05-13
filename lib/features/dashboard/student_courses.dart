@@ -24,7 +24,7 @@ const kText1Light = Color(0xFF0F172A);
 const kText2Light = Color(0xFF64748B);
 const kText3Light = Color(0xFF94A3B8);
 const kText1Dark = Colors.white;
-const kText2Dark = Color(0xFF94A3B8);
+const kText2Dark = Color(0xFFE2E8F0);
 const kDivLight = Color(0xFFF1F5F9);
 
 // ── Models ─────────────────────────────────────────────────────────────────────

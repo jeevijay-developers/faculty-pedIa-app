@@ -13,6 +13,7 @@ class Educator extends User {
   final String? introVideoLink;
   final String? introVideoVimeoUri;
   final double? payPerHourFee;
+  final SocialLinks socials;
 
   Educator({
     required super.id,
@@ -38,6 +39,7 @@ class Educator extends User {
     this.introVideoLink,
     this.introVideoVimeoUri,
     this.payPerHourFee,
+    this.socials = const SocialLinks(),
   }) : super(role: 'educator');
 
   String get displaySubjects {
@@ -101,6 +103,7 @@ class Educator extends User {
       introVideoLink: json['introVideo'] ?? json['introVideoLink'],
       introVideoVimeoUri: json['introVideoVimeoUri'],
       payPerHourFee: (json['payPerHourFee'] as num?)?.toDouble(),
+      socials: SocialLinks.fromJson(json['socials']),
     );
   }
 
@@ -184,6 +187,48 @@ class Educator extends User {
       'introVideoLink': introVideoLink,
       'introVideoVimeoUri': introVideoVimeoUri,
       'payPerHourFee': payPerHourFee,
+      'socials': socials.toJson(),
+    };
+  }
+}
+
+class SocialLinks {
+  final String linkedin;
+  final String twitter;
+  final String facebook;
+  final String instagram;
+  final String youtube;
+  final String website;
+
+  const SocialLinks({
+    this.linkedin = '',
+    this.twitter = '',
+    this.facebook = '',
+    this.instagram = '',
+    this.youtube = '',
+    this.website = '',
+  });
+
+  factory SocialLinks.fromJson(dynamic json) {
+    if (json is! Map) return const SocialLinks();
+    return SocialLinks(
+      linkedin: json['linkedin']?.toString() ?? '',
+      twitter: json['twitter']?.toString() ?? '',
+      facebook: json['facebook']?.toString() ?? '',
+      instagram: json['instagram']?.toString() ?? '',
+      youtube: json['youtube']?.toString() ?? '',
+      website: json['website']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'linkedin': linkedin,
+      'twitter': twitter,
+      'facebook': facebook,
+      'instagram': instagram,
+      'youtube': youtube,
+      'website': website,
     };
   }
 }

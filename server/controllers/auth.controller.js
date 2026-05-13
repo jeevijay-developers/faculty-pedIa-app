@@ -4,6 +4,7 @@ import Educator from "../models/educator.js";
 import Student from "../models/student.js";
 import Admin from "../models/admin.js";
 import PasswordResetToken from "../models/passwordResetToken.js";
+import EmailVerificationToken from "../models/emailVerificationToken.js";
 import {
   decodeToken,
   generateAccessToken,
@@ -11,7 +12,10 @@ import {
   hashToken,
   verifyRefreshToken,
 } from "../util/token.js";
-import { sendPasswordResetEmail } from "../util/email.js";
+import {
+  sendPasswordResetOtp,
+  sendEmailVerificationOtp,
+} from "../services/resend.service.js";
 import {
   VALID_CLASSES,
   VALID_SPECIALIZATIONS,
@@ -49,7 +53,11 @@ const sanitizeStudent = (student) => {
   return data;
 };
 
-const STUDENT_CLASS_SLUG_MAP = {
+    await sendEmailVerificationOtp({
+      to: normalizedEmail,
+      otp,
+      userType: "student",
+    });
   "class-6th": "Class 6th",
   "class-7th": "Class 7th",
   "class-8th": "Class 8th",
@@ -203,7 +211,11 @@ const sanitizeQualificationArray = (entries = []) => {
       title: normalizeString(entry.title),
       institute: normalizeString(entry.institute),
       startDate: parseDateValue(entry.startDate),
-      endDate: parseDateValue(entry.endDate),
+    await sendPasswordResetOtp({
+      to: normalizedEmail,
+      otp,
+      userType: role,
+    });
       description: normalizeString(entry.description),
     }))
     .filter(
@@ -613,20 +625,187 @@ export const signupStudent = async (req, res) => {
 
     await student.save();
 
+    const now = Date.now();
+    const otp = generateOtp();
+    const otpHash = hashToken(otp);
+    const expiresAt = new Date(now + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await EmailVerificationToken.findOneAndUpdate(
+      { email: normalizedEmail, role: "student" },
+      {
+        email: normalizedEmail,
+        role: "student",
+        user: student._id,
+        userModel: "Student",
+        otpHash,
+        expiresAt,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendEmailVerificationOtp({
+      to: normalizedEmail,
+      otp,
+      userType: "student",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Signup successful. OTP sent to your email.",
+      student: sanitizeStudent(student),
+      userType: "student",
+    });
+  } catch (error) {
+    console.error("Error during student signup:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+export const verifyEmailOtp = async (req, res) => {
+  try {
+    if (handleValidationErrors(req, res)) {
+      return;
+    }
+
+    const { email, otp } = req.body;
+    const normalizedEmail = email?.toLowerCase?.();
+
+    const tokenDoc = await EmailVerificationToken.findOne({
+      email: normalizedEmail,
+      role: "student",
+    });
+
+    if (!tokenDoc) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    const now = new Date();
+    if (tokenDoc.expiresAt <= now) {
+      await EmailVerificationToken.deleteOne({ _id: tokenDoc._id });
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired. Please request a new one.",
+      });
+    }
+
+    const hashedOtp = hashToken(otp);
+    if (hashedOtp !== tokenDoc.otpHash) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    const student = await Student.findOneAndUpdate(
+      { email: normalizedEmail },
+      { isEmailVerified: true },
+      { new: true }
+    );
+
+    if (!student) {
+      await EmailVerificationToken.deleteOne({ _id: tokenDoc._id });
+      return res.status(404).json({
+        success: false,
+        message: "Account not found",
+      });
+    }
+
+    await EmailVerificationToken.deleteOne({ _id: tokenDoc._id });
+
     const token = generateAccessToken({
       sub: student._id.toString(),
       role: "student",
     });
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: "Signup successful",
+      message: "Email verified",
       student: sanitizeStudent(student),
       TOKEN: token,
       userType: "student",
     });
   } catch (error) {
-    console.error("Error during student signup:", error);
+    console.error("Error verifying email:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+export const resendVerificationOtp = async (req, res) => {
+  try {
+    if (handleValidationErrors(req, res)) {
+      return;
+    }
+
+    const { email } = req.body;
+    const normalizedEmail = email?.toLowerCase?.();
+
+    const student = await Student.findOne({ email: normalizedEmail });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Account not found",
+      });
+    }
+
+    const existingToken = await EmailVerificationToken.findOne({
+      email: normalizedEmail,
+      role: "student",
+    });
+
+    const now = Date.now();
+
+    if (existingToken) {
+      if (existingToken.expiresAt && existingToken.expiresAt <= new Date(now)) {
+        await EmailVerificationToken.deleteOne({ _id: existingToken._id });
+      } else if (
+        existingToken.updatedAt &&
+        now - existingToken.updatedAt.getTime() < OTP_THROTTLE_MS
+      ) {
+        return res.status(429).json({
+          success: false,
+          message:
+            "OTP already sent. Please wait a minute before requesting again.",
+        });
+      }
+    }
+
+    const otp = generateOtp();
+    const otpHash = hashToken(otp);
+    const expiresAt = new Date(now + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await EmailVerificationToken.findOneAndUpdate(
+      { email: normalizedEmail, role: "student" },
+      {
+        email: normalizedEmail,
+        role: "student",
+        user: student._id,
+        userModel: "Student",
+        otpHash,
+        expiresAt,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendVerificationEmail({ to: normalizedEmail, otp });
+
+    res.status(200).json({
+      success: true,
+      message: "OTP sent to registered email",
+    });
+  } catch (error) {
+    console.error("Error resending verification OTP:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

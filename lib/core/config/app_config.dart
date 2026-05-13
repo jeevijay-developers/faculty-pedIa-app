@@ -7,7 +7,7 @@ class AppConfig {
   // API Configuration
   // Use 10.0.2.2 for Android emulator to reach your local machine.
   static const bool useLocalBackend = false;
-  static const String baseUrl1 = 'https://facultypedia-server.onrender.com';
+  static const String baseUrl1 = 'https://api.facultypedia.com';
   static const String baseUrl =
       useLocalBackend ? 'http://10.0.2.2:5001' : baseUrl1;
   static const String apiPrefix = '/api';

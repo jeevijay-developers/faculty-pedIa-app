@@ -478,34 +478,37 @@ class _PostCard extends StatelessWidget {
                   color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _authorAvatar(isDark),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        post.authorName ?? 'Faculty Pedia',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? kText1Dark : kText1Light,
+                GestureDetector(
+                  onTap: () => _showPostModal(context, isDark),
+                  child: Row(
+                    children: [
+                      _authorAvatar(isDark),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          post.authorName ?? 'Faculty Pedia',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? kText1Dark : kText1Light,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      'Read More',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? kText2Dark : kPrimary,
+                      Text(
+                        'Read More',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? kText2Dark : kPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(Icons.arrow_forward_ios_rounded,
-                        size: 12, color: isDark ? kText2Dark : kPrimary),
-                  ],
+                      const SizedBox(width: 6),
+                      Icon(Icons.arrow_forward_ios_rounded,
+                          size: 12, color: isDark ? kText2Dark : kPrimary),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -593,6 +596,110 @@ class _PostCard extends StatelessWidget {
       return '${AppConfig.baseUrl}$url';
     }
     return '${AppConfig.baseUrl}/$url';
+  }
+
+  void _showPostModal(BuildContext context, bool isDark) {
+    final content = (post.content ?? post.excerpt ?? '').trim();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.45,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? kSurfaceDark : kSurface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
+                    blurRadius: 18,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.2) : kDivLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 6),
+                    child: Row(
+                      children: [
+                        _authorAvatar(isDark),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            post.authorName ?? 'Faculty Pedia',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? kText1Dark : kText1Light,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: isDark ? kText2Dark : kText2Light,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 6, 18, 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        post.title,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? kText1Dark : kText1Light,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                      child: Text(
+                        content.isNotEmpty
+                            ? content
+                            : 'No additional content available.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.6,
+                          color: isDark ? kText2Dark : kText2Light,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
 

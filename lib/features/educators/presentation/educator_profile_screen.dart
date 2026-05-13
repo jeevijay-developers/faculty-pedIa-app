@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
@@ -17,7 +20,7 @@ import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/user_widgets.dart';
 import '../../../loading/skeleton.educator.dart';
 
-// ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
+// ── Design tokens ──────────────────────────────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
 const kPrimaryDark = Color(0xFF1D4ED8);
 const kPrimaryBg = Color(0xFFEFF6FF);
@@ -38,36 +41,31 @@ const kDivLight = Color(0xFFF1F5F9);
 final educatorDetailProvider =
     FutureProvider.family.autoDispose<Educator, String>((ref, id) async {
   final api = ApiService();
-  final response = await api.get('/api/educators/$id');
-  final data = response.data;
+  final resp = await api.get('/api/educators/$id');
+  final data = resp.data;
   Map<String, dynamic> ed = {};
-  if (data is Map && data['data'] is Map && data['data']['educator'] != null) {
+  if (data is Map && data['data'] is Map && data['data']['educator'] != null)
     ed = Map<String, dynamic>.from(data['data']['educator']);
-  } else if (data is Map && data['educator'] != null) {
+  else if (data is Map && data['educator'] != null)
     ed = Map<String, dynamic>.from(data['educator']);
-  } else if (data is Map) {
-    ed = Map<String, dynamic>.from(data);
-  }
+  else if (data is Map) ed = Map<String, dynamic>.from(data);
   return Educator.fromJson(ed);
 });
 
 final educatorCoursesProvider =
     FutureProvider.family.autoDispose<List<Course>, String>((ref, id) async {
   final api = ApiService();
-  final response = await api.get('/api/courses/educator/$id');
-  final data = response.data;
+  final resp = await api.get('/api/courses/educator/$id');
+  final data = resp.data;
   List<dynamic> list = [];
-  if (data is Map && data['data'] is Map && data['data']['courses'] != null) {
+  if (data is Map && data['data'] is Map && data['data']['courses'] != null)
     list = data['data']['courses'] as List;
-  } else if (data is Map && data['courses'] != null) {
+  else if (data is Map && data['courses'] != null)
     list = data['courses'] as List;
-  } else if (data is List) {
-    list = data;
-  }
+  else if (data is List) list = data;
   final courses = list.map((e) => Course.fromJson(e)).toList();
-  final hasReviewsField = list.any((e) => e is Map && e.containsKey('reviews'));
-  if (courses.isEmpty || hasReviewsField) return courses;
-
+  final hasReviews = list.any((e) => e is Map && e.containsKey('reviews'));
+  if (courses.isEmpty || hasReviews) return courses;
   return Future.wait(courses.map((course) async {
     final dr = await api.get('/api/courses/${course.id}');
     final dd = dr.data;
@@ -84,8 +82,8 @@ final educatorCoursesProvider =
 final educatorTestSeriesProvider = FutureProvider.family
     .autoDispose<List<TestSeries>, String>((ref, id) async {
   final api = ApiService();
-  final response = await api.get('/api/test-series/educator/$id');
-  final data = response.data;
+  final resp = await api.get('/api/test-series/educator/$id');
+  final data = resp.data;
   List<dynamic> list = [];
   if (data is Map && data['testSeries'] != null)
     list = data['testSeries'] as List;
@@ -96,8 +94,8 @@ final educatorTestSeriesProvider = FutureProvider.family
 final educatorWebinarsProvider =
     FutureProvider.family.autoDispose<List<dynamic>, String>((ref, id) async {
   final api = ApiService();
-  final response = await api.get('/api/webinars/educator/$id');
-  final data = response.data;
+  final resp = await api.get('/api/webinars/educator/$id');
+  final data = resp.data;
   List<dynamic> list = [];
   if (data is Map && data['data'] is Map && data['data']['webinars'] != null)
     list = data['data']['webinars'] as List;
@@ -122,9 +120,9 @@ class EducatorProfileScreen extends ConsumerWidget {
       error: (e, _) => Scaffold(
         backgroundColor: isDark ? kBgDark : kBgLight,
         appBar: AppBar(
-          backgroundColor: isDark ? kBgDark : kBgLight,
+          backgroundColor: kPrimary,
           elevation: 0,
-          leading: _backBtn(context, isDark),
+          leading: _backBtn(context),
         ),
         body: _ErrorView(
           message: e.toString(),
@@ -139,17 +137,17 @@ class EducatorProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _backBtn(BuildContext context, bool isDark) => Padding(
+  Widget _backBtn(BuildContext context) => Padding(
         padding: const EdgeInsets.all(8),
         child: GestureDetector(
           onTap: () => context.pop(),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark ? kSurfaceDark : kPrimaryBg,
+              color: Colors.white.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: kPrimary, size: 18),
+                color: Colors.white, size: 18),
           ),
         ),
       );
@@ -159,7 +157,6 @@ class EducatorProfileScreen extends ConsumerWidget {
 class _ProfileBody extends ConsumerStatefulWidget {
   final Educator educator;
   final String educatorId;
-
   const _ProfileBody({required this.educator, required this.educatorId});
 
   @override
@@ -216,10 +213,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             false);
   }
 
+  bool _isDark() => Theme.of(context).brightness == Brightness.dark;
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = _isDark();
     final isFollowing = _isFollowingInitialized
         ? _isFollowing
         : (_computeFollowing(auth) ?? false);
@@ -229,64 +228,20 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     final tsAsync = ref.watch(educatorTestSeriesProvider(widget.educatorId));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
+      value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: isDark ? kBgDark : kBgLight,
         body: NestedScrollView(
           headerSliverBuilder: (_, __) => [
-            // AppBar
-            SliverAppBar(
-              pinned: true,
-              elevation: 0,
-              backgroundColor: isDark ? kBgDark : kSurface,
-              surfaceTintColor: Colors.transparent,
-              leading: Padding(
-                padding: const EdgeInsets.all(8),
-                child: GestureDetector(
-                  onTap: () => context.pop(),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? kSurfaceDark : kPrimaryBg,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: kPrimary, size: 18),
-                  ),
-                ),
-              ),
-              title: Text(
-                'Educator Profile',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: isDark ? kText1Dark : kText1Light,
-                ),
-              ),
-              actions: [],
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(0.5),
-                child:
-                    Divider(height: 0.5, color: Colors.grey.withOpacity(0.12)),
-              ),
-            ),
+            // ── Hero AppBar ────────────────────────────────────────
+            _buildHeroAppBar(e, isFollowing, isDark),
 
-            // Header card
+            // ── Stats row ──────────────────────────────────────────
             SliverToBoxAdapter(
-              child: _ProfileHeaderCard(
-                educator: e,
-                isFollowing: isFollowing,
-                isDark: isDark,
-                onFollowTap: _toggleFollow,
-              ),
-            ),
-
-            // Stats grid
-            SliverToBoxAdapter(
-              child: _StatsGrid(
+              child: _StatsRow(
                 educator: e,
                 educatorId: widget.educatorId,
                 followerCount: _followerCount,
@@ -294,13 +249,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ),
 
-            // Book 1:1 session
+            // ── Book 1:1 ──────────────────────────────────────────
             if (hasPayPerHour)
               SliverToBoxAdapter(
                 child: _BookSessionCard(educator: e, isDark: isDark),
               ),
 
-            // Intro video
+            // ── Intro video ────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -308,10 +263,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ),
 
-            // About
+            // ── About ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 0),
                 child: _AboutSection(
                   bio: e.bio ?? '',
                   subjects: _subjectChips(e),
@@ -323,10 +278,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ),
 
-            // Background
+            // ── Background ─────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 0),
                 child: _BackgroundSection(
                   qualifications: e.qualifications,
                   workExperience: e.workExperience,
@@ -335,10 +290,23 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ),
 
-            // Ratings
+            // ── Contact ────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 0),
+                child: _ContactSection(
+                  educator: e,
+                  isDark: isDark,
+                  onLaunch: _launchExternal,
+                  onWhatsApp: _openWhatsApp,
+                ),
+              ),
+            ),
+
+            // ── Ratings ────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 0),
                 child: _RatingsSection(
                   educator: e,
                   coursesAsync: coursesAsync,
@@ -350,7 +318,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               ),
             ),
 
-            // Tab bar
+            // ── Sticky tab bar ─────────────────────────────────────
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickyTabDelegate(
@@ -371,7 +339,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   tabs: const [
                     Tab(text: 'Courses'),
                     Tab(text: 'Webinars'),
-                    Tab(text: 'Test Series'),
+                    Tab(text: 'Tests')
                   ],
                 ),
               ),
@@ -399,9 +367,240 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     );
   }
 
-  bool _isDark() => Theme.of(context).brightness == Brightness.dark;
+  // ── Hero AppBar ──────────────────────────────────────────────────────────
+  SliverAppBar _buildHeroAppBar(Educator e, bool isFollowing, bool isDark) {
+    final name = e.displayName.isNotEmpty ? e.displayName : 'Educator';
+    final handle = '@${name.toLowerCase().replaceAll(' ', '_')}';
+    final avg = e.rating?.average ?? 0;
 
-  // ── Video ──────────────────────────────────────────────────────────────────
+    return SliverAppBar(
+      expandedHeight: 300,
+      pinned: true,
+      elevation: 0,
+      backgroundColor: kPrimary,
+      surfaceTintColor: Colors.transparent,
+      leading: Padding(
+        padding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () => context.pop(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.white, size: 18),
+          ),
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () => _shareEducator(e),
+            child: Container(
+              width: 38,
+              height: 38,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.share_rounded,
+                  color: Colors.white, size: 18),
+            ),
+          ),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        background: Stack(
+          children: [
+            // gradient background
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [kPrimary, kPrimaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            // frosted circle decorations
+            Positioned(
+                right: -40,
+                top: -40,
+                child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.06),
+                        shape: BoxShape.circle))),
+            Positioned(
+                left: -20,
+                bottom: 60,
+                child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        shape: BoxShape.circle))),
+            // content
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 24,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // avatar + rating badge
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6))
+                          ],
+                        ),
+                        child: UserAvatar(
+                            imageUrl: e.imageUrl,
+                            name: e.displayName,
+                            size: 88,
+                            showBorder: false),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2))
+                            ],
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.star_rounded,
+                                color: Color(0xFFF59E0B), size: 12),
+                            const SizedBox(width: 3),
+                            Text(avg.toStringAsFixed(1),
+                                style: const TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // name
+                  Text(name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -0.4,
+                      )),
+                  const SizedBox(height: 4),
+                  Text(handle,
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.white.withOpacity(0.65))),
+                  const SizedBox(height: 14),
+                  // subject pills
+                  if (e.subject.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.center,
+                      children: e.subject
+                          .take(3)
+                          .map((s) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.3)),
+                                ),
+                                child: Text(s,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
+                              ))
+                          .toList(),
+                    ),
+                  const SizedBox(height: 16),
+                  // follow button
+                  GestureDetector(
+                    onTap: _toggleFollow,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 48, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isFollowing
+                            ? Colors.white.withOpacity(0.18)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: isFollowing
+                            ? Border.all(color: Colors.white.withOpacity(0.4))
+                            : null,
+                        boxShadow: isFollowing
+                            ? []
+                            : [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4))
+                              ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                              isFollowing
+                                  ? Icons.check_rounded
+                                  : Icons.add_rounded,
+                              color: isFollowing ? Colors.white : kPrimary,
+                              size: 16),
+                          const SizedBox(width: 6),
+                          Text(isFollowing ? 'Following' : 'Follow',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: isFollowing ? Colors.white : kPrimary,
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+      ),
+    );
+  }
+
+  // ── Video ────────────────────────────────────────────────────────────────
   Widget _buildVideo(Educator e, bool isDark) {
     final url = _resolveUrl(e.introVideoLink ?? '');
     if (url.isEmpty) {
@@ -413,17 +612,21 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           border: Border.all(
               color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.play_circle_outline_rounded, color: kPrimary),
-            const SizedBox(width: 12),
-            Expanded(
+        child: Row(children: [
+          Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(11)),
+              child: const Icon(Icons.play_circle_outline_rounded,
+                  color: kPrimary, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(
               child: Text('Intro video not available.',
                   style: TextStyle(
-                      fontSize: 13, color: isDark ? kText2Dark : kText2Light)),
-            ),
-          ],
-        ),
+                      fontSize: 13, color: isDark ? kText2Dark : kText2Light))),
+        ]),
       );
     }
 
@@ -451,39 +654,26 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                     fit: BoxFit.cover,
                     clipBehavior: Clip.hardEdge,
                     child: SizedBox(
-                      width: _videoCtrl!.value.size.width,
-                      height: _videoCtrl!.value.size.height,
-                      child: VideoPlayer(_videoCtrl!),
-                    ),
-                  )
+                        width: _videoCtrl!.value.size.width,
+                        height: _videoCtrl!.value.size.height,
+                        child: VideoPlayer(_videoCtrl!)))
                 : Container(
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [kPrimary, kPrimaryDark],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
+                        gradient: LinearGradient(
+                            colors: [kPrimary, kPrimaryDark],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight)),
                     child: const Center(
-                      child: Icon(Icons.videocam_rounded,
-                          color: Colors.white24, size: 56),
-                    ),
-                  ),
+                        child: Icon(Icons.videocam_rounded,
+                            color: Colors.white24, size: 56))),
           ),
           Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                ),
-              ),
-            ),
-          ),
+              child: Container(
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+            Colors.black.withOpacity(0.4),
+            Colors.transparent
+          ], begin: Alignment.bottomCenter, end: Alignment.topCenter)))),
           GestureDetector(
             onTap: () {
               if (_videoCtrl == null) return;
@@ -497,35 +687,32 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                color: kPrimary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: kPrimary.withOpacity(0.4),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4)),
-                ],
-              ),
+                  color: kPrimary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: kPrimary.withOpacity(0.4),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4))
+                  ]),
               child: Icon(
-                _videoCtrl != null && _videoCtrl!.value.isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
+                  _videoCtrl != null && _videoCtrl!.value.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 28),
             ),
           ),
           Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                children: [
+              top: 12,
+              left: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Row(children: [
                   Icon(Icons.play_circle_rounded,
                       color: Colors.white, size: 12),
                   SizedBox(width: 4),
@@ -534,20 +721,18 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                           color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
+                ]),
+              )),
         ],
       ),
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
   List<String> _subjectChips(Educator e) {
     final chips = <String>[
       ...e.specialization.map(_titleCase),
-      ...e.subject.map(_titleCase),
+      ...e.subject.map(_titleCase)
     ];
     return chips.where((v) => v.isNotEmpty).toSet().toList();
   }
@@ -614,7 +799,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     }
   }
 
-  // ── Follow ─────────────────────────────────────────────────────────────────
+  // ── Follow ────────────────────────────────────────────────────────────────
   Future<void> _toggleFollow() async {
     final auth = ref.read(authStateProvider);
     final sid = auth.student?.id;
@@ -627,14 +812,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         ? _isFollowing
         : (_computeFollowing(auth) ?? false);
     final prevCount = _followerCount;
-
     setState(() {
       _isFollowingInitialized = true;
       _isFollowing = !wasFollowing;
       _followerCount = (_followerCount + (wasFollowing ? -1 : 1))
           .clamp(0, double.maxFinite.toInt());
     });
-
     try {
       Response resp;
       if (wasFollowing) {
@@ -645,9 +828,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
             data: {'educatorId': widget.educatorId});
       }
       final latestCount = _parseFollowerCount(resp.data);
-      if (latestCount != null && mounted) {
+      if (latestCount != null && mounted)
         setState(() => _followerCount = latestCount);
-      }
     } catch (e) {
       if (e is DioException) {
         final msg = _parseErrorMsg(e.response?.data);
@@ -694,7 +876,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     return '';
   }
 
-  // ── Rating ─────────────────────────────────────────────────────────────────
+  // ── Rating ────────────────────────────────────────────────────────────────
   Future<void> _submitRating(int rating) async {
     final auth = ref.read(authStateProvider);
     final sid = auth.student?.id;
@@ -703,10 +885,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       return;
     }
     try {
-      await ApiService().post(
-        '/api/educators/${widget.educatorId}/rating',
-        data: {'studentId': sid, 'rating': rating},
-      );
+      await ApiService().post('/api/educators/${widget.educatorId}/rating',
+          data: {'studentId': sid, 'rating': rating});
       if (mounted) setState(() => _myRating = rating);
     } catch (e) {
       if (e is DioException) {
@@ -734,203 +914,54 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       backgroundColor: const Color(0xFF1E293B),
     ));
   }
-}
 
-// ── Profile header card ────────────────────────────────────────────────────────
-class _ProfileHeaderCard extends StatelessWidget {
-  final Educator educator;
-  final bool isFollowing;
-  final bool isDark;
-  final VoidCallback onFollowTap;
+  Future<void> _shareEducator(Educator educator) async {
+    final imageUrl = _resolveUrl(educator.imageUrl ?? '');
+    final buffer = StringBuffer();
+    if (imageUrl.isNotEmpty) {
+      buffer.writeln(imageUrl);
+      buffer.writeln();
+    }
+    buffer.writeln('Check this educator on FacultyPedia!');
+    buffer.writeln('\nEducator: ${educator.displayName}');
+    buffer.writeln('\nhttps://facultypedia.app/educator/${educator.id}');
+    await Share.share(buffer.toString());
+  }
 
-  const _ProfileHeaderCard({
-    required this.educator,
-    required this.isFollowing,
-    required this.isDark,
-    required this.onFollowTap,
-  });
+  Future<void> _launchExternal(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication))
+      _snack('Unable to open link.');
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final name =
-        educator.displayName.isNotEmpty ? educator.displayName : 'Educator';
-    final handle = '@${name.toLowerCase().replaceAll(' ', '_')}';
+  void _openWhatsApp(String phone) {
+    final url = _buildWhatsAppUrl(phone);
+    if (url.isEmpty) {
+      _snack('WhatsApp number not available.');
+      return;
+    }
+    _launchExternal(url);
+  }
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: isDark ? kSurfaceDark : kSurface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Avatar + rating badge
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kPrimary, width: 2),
-                ),
-                child: UserAvatar(
-                  imageUrl: educator.imageUrl,
-                  name: educator.displayName,
-                  size: 84,
-                  showBorder: false,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: -4,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: kPrimary,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                          color: kPrimary.withOpacity(0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.white, size: 11),
-                      const SizedBox(width: 3),
-                      Text(
-                        educator.rating?.average?.toStringAsFixed(1) ?? '0.0',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          Text(
-            name,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.4,
-              color: isDark ? kText1Dark : kText1Light,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            handle,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: isDark ? kText2Dark : kText3Light,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // Subject pills
-          if (educator.subject.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
-              children: educator.subject
-                  .take(3)
-                  .map((s) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.06)
-                              : kPrimaryBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withOpacity(0.08)
-                                : kPrimaryMid,
-                          ),
-                        ),
-                        child: Text(s,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? kText2Dark : kPrimary,
-                            )),
-                      ))
-                  .toList(),
-            ),
-
-          const SizedBox(height: 18),
-
-          // Follow button
-          GestureDetector(
-            onTap: onFollowTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-              decoration: BoxDecoration(
-                color: isFollowing ? kPrimaryBg : kPrimary,
-                borderRadius: BorderRadius.circular(16),
-                border: isFollowing ? Border.all(color: kPrimaryMid) : null,
-                boxShadow: isFollowing
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: kPrimary.withOpacity(0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-              ),
-              child: Text(
-                isFollowing ? 'Following' : 'Follow',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: isFollowing ? kPrimary : Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  String _buildWhatsAppUrl(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    if (digits.length == 10) return 'https://wa.me/91$digits';
+    if (digits.length == 11 && digits.startsWith('0'))
+      return 'https://wa.me/91${digits.substring(1)}';
+    return 'https://wa.me/$digits';
   }
 }
 
-// ── Stats grid ─────────────────────────────────────────────────────────────────
-class _StatsGrid extends ConsumerWidget {
+// ── Stats row (4-column) ───────────────────────────────────────────────────────
+class _StatsRow extends ConsumerWidget {
   final Educator educator;
   final String educatorId;
   final int? followerCount;
   final bool isDark;
 
-  const _StatsGrid({
+  const _StatsRow({
     required this.educator,
     required this.educatorId,
     required this.isDark,
@@ -951,105 +982,91 @@ class _StatsGrid extends ConsumerWidget {
     final fCount = followerCount ?? educator.followerCount;
 
     final stats = [
-      _StatItem(Icons.menu_book_rounded, '$coursesCount', 'Courses'),
-      _StatItem(Icons.assignment_rounded, '$tsCount', 'Test Series'),
-      _StatItem(Icons.videocam_rounded, '$webinarCount', 'Webinars'),
-      _StatItem(Icons.people_rounded, _fmtCount(fCount), 'Followers'),
+      _Stat(Icons.menu_book_rounded, '$coursesCount', 'Courses'),
+      _Stat(Icons.assignment_rounded, '$tsCount', 'Tests'),
+      _Stat(Icons.videocam_rounded, '$webinarCount', 'Webinars'),
+      _Stat(Icons.people_rounded, _fmt(fCount), 'Followers'),
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: stats.map((s) {
           final isLast = s == stats.last;
           return Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _StatCard(stat: s, isDark: isDark)),
-                if (!isLast) const SizedBox(width: 10),
-              ],
-            ),
-          );
+              child: Row(children: [
+            Expanded(child: _StatTile(stat: s, isDark: isDark)),
+            if (!isLast) const SizedBox(width: 10),
+          ]));
         }).toList(),
       ),
     );
   }
 
-  String _fmtCount(int c) {
+  String _fmt(int c) {
     if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
     if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
     return '$c';
   }
 }
 
-class _StatItem {
+class _Stat {
   final IconData icon;
   final String value, label;
-  const _StatItem(this.icon, this.value, this.label);
+  const _Stat(this.icon, this.value, this.label);
 }
 
-class _StatCard extends StatelessWidget {
-  final _StatItem stat;
+class _StatTile extends StatelessWidget {
+  final _Stat stat;
   final bool isDark;
-  const _StatCard({required this.stat, required this.isDark});
+  const _StatTile({required this.stat, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
         color: isDark ? kSurfaceDark : kSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-        ),
+            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
         ],
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
+      child: Column(children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
               color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(stat.icon, color: kPrimary, size: 17),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            stat.value,
+              borderRadius: BorderRadius.circular(10)),
+          child: Icon(stat.icon, color: kPrimary, size: 15),
+        ),
+        const SizedBox(height: 8),
+        Text(stat.value,
             style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: kPrimary,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            stat.label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-              color: isDark ? kText2Dark : kText3Light,
-            ),
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: kPrimary,
+                letterSpacing: -0.4)),
+        const SizedBox(height: 2),
+        Text(stat.label,
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+            style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+                color: isDark ? kText2Dark : kText3Light)),
+      ]),
     );
   }
 }
 
-// ── Book 1:1 ──────────────────────────────────────────────────────────────────
+// ── Book 1:1 card (gradient) ──────────────────────────────────────────────────
 class _BookSessionCard extends StatelessWidget {
   final Educator educator;
   final bool isDark;
@@ -1063,92 +1080,75 @@ class _BookSessionCard extends StatelessWidget {
         fee % 1 == 0 ? fee.toStringAsFixed(0) : fee.toStringAsFixed(2);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? kSurfaceDark : kSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border(
-          left: const BorderSide(color: kPrimary, width: 3.5),
-          top: BorderSide(
-              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
-          right: BorderSide(
-              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
-          bottom: BorderSide(
-              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
-        ),
+        gradient: const LinearGradient(
+            colors: [kPrimary, kPrimaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
+              color: kPrimary.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6))
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Book 1:1 Session',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: isDark ? kText1Dark : kText1Light,
-                    )),
-                const SizedBox(height: 4),
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '₹$feeText ',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20,
-                          color: kPrimary,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '/ hour',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? kText2Dark : kText2Light,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      child: Row(children: [
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('BOOK A SESSION',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2)),
+          const SizedBox(height: 6),
+          Text('1:1 Live with Expert',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3)),
+          const SizedBox(height: 6),
+          Row(children: [
+            Text('₹$feeText',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5)),
+            const SizedBox(width: 6),
+            Text('/ hour',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.7), fontSize: 13)),
+          ]),
+        ])),
+        GestureDetector(
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
+            child: const Icon(Icons.calendar_today_rounded,
+                color: Colors.white, size: 22),
           ),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: kPrimaryBg,
-                shape: BoxShape.circle,
-                border: Border.all(color: kPrimaryMid),
-              ),
-              child: const Icon(Icons.calendar_today_rounded,
-                  color: kPrimary, size: 20),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
 
 // ── About section ──────────────────────────────────────────────────────────────
 class _AboutSection extends StatelessWidget {
-  final String bio;
+  final String bio, experience;
   final List<String> subjects;
-  final String experience;
-  final bool expanded;
-  final bool isDark;
+  final bool expanded, isDark;
   final VoidCallback onToggle;
 
   const _AboutSection({
@@ -1166,121 +1166,64 @@ class _AboutSection extends StatelessWidget {
     final hasBio = trimmed.isNotEmpty;
     final isLong = trimmed.length > 180;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('About Me',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: isDark ? kText1Dark : kText1Light,
-                )),
-            const Spacer(),
-            if (experience.isNotEmpty)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color:
-                        isDark ? Colors.white.withOpacity(0.08) : kPrimaryMid,
-                  ),
-                ),
-                child: Text('$experience Exp',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: kPrimary,
-                    )),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? kSurfaceDark : kSurface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                hasBio
-                    ? (expanded || !isLong
-                        ? trimmed
-                        : '${trimmed.substring(0, 180)}…')
-                    : 'No bio added yet.',
-                style: TextStyle(
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionLabel(
+          'About Me', experience.isNotEmpty ? '$experience Exp' : null, isDark),
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: _cardDeco(isDark),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+              hasBio
+                  ? (expanded || !isLong
+                      ? trimmed
+                      : '${trimmed.substring(0, 180)}…')
+                  : 'No bio added yet.',
+              style: TextStyle(
                   fontSize: 13,
                   height: 1.65,
-                  color: isDark ? kText2Dark : kText2Light,
-                ),
-              ),
-              if (hasBio && isLong) ...[
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: onToggle,
-                  child: Text(
-                    expanded ? 'Show less' : 'Read more',
+                  color: isDark ? kText2Dark : kText2Light)),
+          if (hasBio && isLong) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+                onTap: onToggle,
+                child: Text(expanded ? 'Show less' : 'Read more',
                     style: const TextStyle(
-                      fontSize: 13,
-                      color: kPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-              if (subjects.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: subjects
-                      .map((s) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withOpacity(0.05)
-                                  : kPrimaryBg,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
+                        fontSize: 13,
+                        color: kPrimary,
+                        fontWeight: FontWeight.w700))),
+          ],
+          if (subjects.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: subjects
+                  .map((s) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : kPrimaryBg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
                                 color: isDark
                                     ? Colors.white.withOpacity(0.08)
-                                    : kPrimaryMid,
-                              ),
-                            ),
-                            child: Text(s,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? kText2Dark : kPrimary,
-                                )),
-                          ))
-                      .toList(),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
+                                    : kPrimaryMid)),
+                        child: Text(s,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? kText2Dark : kPrimary)),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ]),
+      ),
+    ]);
   }
 }
 
@@ -1298,66 +1241,37 @@ class _BackgroundSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Background',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-              color: isDark ? kText1Dark : kText1Light,
-            )),
-        const SizedBox(height: 10),
-        if (workExperience.isEmpty && qualifications.isEmpty)
-          _emptyCard('No background details added yet.', isDark),
-        ...workExperience.map((w) => _BackgroundTile(
-              title: w.title ?? 'Experience',
-              institution: w.company ?? '',
-              year: w.duration,
-              isExperience: true,
-              isDark: isDark,
-            )),
-        ...qualifications.map((q) => _BackgroundTile(
-              title: q.title ?? q.degree ?? 'Qualification',
-              institution: q.institution,
-              year: q.year,
-              isExperience: false,
-              isDark: isDark,
-            )),
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionLabel('Background', null, isDark),
+      const SizedBox(height: 10),
+      if (workExperience.isEmpty && qualifications.isEmpty)
+        _emptyCard('No background details added yet.', isDark),
+      ...workExperience.map((w) => _BgTile(
+          title: w.title ?? 'Experience',
+          institution: w.company ?? '',
+          year: w.duration,
+          isExp: true,
+          isDark: isDark)),
+      ...qualifications.map((q) => _BgTile(
+          title: q.title ?? q.degree ?? 'Qualification',
+          institution: q.institution ?? '',
+          year: q.year,
+          isExp: false,
+          isDark: isDark)),
+    ]);
   }
-
-  Widget _emptyCard(String msg, bool isDark) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-          ),
-        ),
-        child: Text(msg,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? kText2Dark : kText2Light,
-            )),
-      );
 }
 
-class _BackgroundTile extends StatelessWidget {
+class _BgTile extends StatelessWidget {
   final String title;
-  final String? institution;
-  final String? year;
-  final bool isExperience;
-  final bool isDark;
+  final String? institution, year;
+  final bool isExp, isDark;
 
-  const _BackgroundTile({
+  const _BgTile({
     required this.title,
     required this.institution,
     required this.year,
-    required this.isExperience,
+    required this.isExp,
     required this.isDark,
   });
 
@@ -1366,75 +1280,252 @@ class _BackgroundTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? kSurfaceDark : kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
+      decoration: _cardDeco(isDark),
+      child: Row(children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
               color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isExperience ? Icons.work_rounded : Icons.school_rounded,
-              color: kPrimary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: isDark ? kText1Dark : kText1Light,
-                    )),
-                if (institution != null && institution!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(institution!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? kText2Dark : kText2Light,
-                      )),
-                ],
-              ],
-            ),
-          ),
-          if (year != null && year!.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : kDivLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(year!,
-                  style: TextStyle(
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: kPrimaryMid)),
+          child: Icon(isExp ? Icons.work_rounded : Icons.school_rounded,
+              color: kPrimary, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: isDark ? kText1Dark : kText1Light)),
+          if (institution != null && institution!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(institution!,
+                style: TextStyle(
+                    fontSize: 12, color: isDark ? kText2Dark : kText2Light)),
+          ],
+        ])),
+        if (year != null && year!.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kPrimaryMid)),
+            child: Text(year!,
+                style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? kText2Dark : kText2Light,
-                  )),
-            ),
-        ],
-      ),
+                    color: kPrimary)),
+          ),
+      ]),
     );
   }
+}
+
+// ── Contact section ────────────────────────────────────────────────────────────
+class _ContactSection extends StatelessWidget {
+  final Educator educator;
+  final bool isDark;
+  final ValueChanged<String> onLaunch;
+  final ValueChanged<String> onWhatsApp;
+
+  const _ContactSection({
+    required this.educator,
+    required this.isDark,
+    required this.onLaunch,
+    required this.onWhatsApp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final email = educator.email;
+    final phone = educator.mobileNumber ?? '';
+    final socials = _buildSocials(educator);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionLabel('Contact', null, isDark),
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: _cardDeco(isDark),
+        child: Column(children: [
+          _contactRow(
+              icon: Icons.mail_outline_rounded,
+              label: 'Email',
+              value: email,
+              onTap: email.isNotEmpty ? () => onLaunch('mailto:$email') : null),
+          Divider(
+              height: 20,
+              color: isDark ? Colors.white.withOpacity(0.07) : kDivLight),
+          _contactRow(
+              icon: Icons.phone_iphone_rounded,
+              label: 'Phone',
+              value: phone.isNotEmpty ? phone : 'Not available',
+              onTap: phone.isNotEmpty ? () => onLaunch('tel:$phone') : null),
+          const SizedBox(height: 16),
+          // WhatsApp button (custom, not ElevatedButton)
+          GestureDetector(
+            onTap: phone.isNotEmpty ? () => onWhatsApp(phone) : null,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: phone.isNotEmpty ? const Color(0xFF22C55E) : kDivLight,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: phone.isNotEmpty
+                    ? [
+                        BoxShadow(
+                            color: const Color(0xFF22C55E).withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3))
+                      ]
+                    : [],
+              ),
+              child:
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(FontAwesomeIcons.whatsapp,
+                    size: 16,
+                    color: phone.isNotEmpty ? Colors.white : kText3Light),
+                const SizedBox(width: 8),
+                Text('WhatsApp',
+                    style: TextStyle(
+                        color: phone.isNotEmpty ? Colors.white : kText3Light,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
+              ]),
+            ),
+          ),
+          if (socials.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Divider(
+                height: 1,
+                color: isDark ? Colors.white.withOpacity(0.07) : kDivLight),
+            const SizedBox(height: 14),
+            Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Social Media',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? kText2Dark : kText2Light))),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: socials
+                  .map((s) => GestureDetector(
+                        onTap: () => onLaunch(_ensureHttpUrl(s.url)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.06)
+                                  : kPrimaryBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.08)
+                                      : kPrimaryMid)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(s.icon, size: 13, color: kPrimary),
+                            const SizedBox(width: 6),
+                            Text(s.label,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? kText2Dark : kPrimary)),
+                          ]),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _contactRow(
+      {required IconData icon,
+      required String label,
+      required String value,
+      VoidCallback? onTap}) {
+    return Row(children: [
+      Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+              borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: kPrimary, size: 18)),
+      const SizedBox(width: 12),
+      Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 11, color: isDark ? kText2Dark : kText3Light)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isDark ? kText1Dark : kText1Light)),
+      ])),
+      if (onTap != null)
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.open_in_new_rounded,
+                  size: 15, color: kPrimary)),
+        ),
+    ]);
+  }
+
+  List<_SocialItem> _buildSocials(Educator e) {
+    final s = e.socials;
+    final items = <_SocialItem>[];
+    if (s.instagram.isNotEmpty)
+      items.add(
+          _SocialItem('Instagram', s.instagram, FontAwesomeIcons.instagram));
+    if (s.facebook.isNotEmpty)
+      items
+          .add(_SocialItem('Facebook', s.facebook, FontAwesomeIcons.facebookF));
+    if (s.linkedin.isNotEmpty)
+      items.add(
+          _SocialItem('LinkedIn', s.linkedin, FontAwesomeIcons.linkedinIn));
+    if (s.twitter.isNotEmpty)
+      items.add(_SocialItem('Twitter', s.twitter, FontAwesomeIcons.twitter));
+    if (s.youtube.isNotEmpty)
+      items.add(_SocialItem('YouTube', s.youtube, FontAwesomeIcons.youtube));
+    if (s.website.isNotEmpty)
+      items.add(_SocialItem('Website', s.website, FontAwesomeIcons.globe));
+    return items;
+  }
+
+  String _ensureHttpUrl(String url) {
+    final t = url.trim();
+    if (t.isEmpty) return '';
+    final u = Uri.tryParse(t);
+    if (u != null && u.hasScheme) return t;
+    return 'https://$t';
+  }
+}
+
+class _SocialItem {
+  final String label, url;
+  final IconData icon;
+  const _SocialItem(this.label, this.url, this.icon);
 }
 
 // ── Ratings section ────────────────────────────────────────────────────────────
@@ -1460,87 +1551,75 @@ class _RatingsSection extends StatelessWidget {
     final avg = educator.rating?.average ?? 0;
     final count = educator.rating?.count ?? 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('Ratings & Reviews',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                  color: isDark ? kText1Dark : kText1Light,
-                )),
-            const Spacer(),
-            const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // header row
+      Row(children: [
+        Expanded(child: _sectionLabel('Ratings & Reviews', null, isDark)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+              color: isDark ? kSurfaceDark : kPrimaryBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: kPrimaryMid)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 14),
             const SizedBox(width: 4),
-            Text(avg.toStringAsFixed(1),
+            Text('${avg.toStringAsFixed(1)} ($count)',
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? kText1Dark : kText1Light,
-                )),
-            const SizedBox(width: 4),
-            Text('($count)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? kText2Dark : kText3Light,
-                )),
-          ],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? kText1Dark : kText1Light)),
+          ]),
         ),
-        const SizedBox(height: 12),
+      ]),
+      const SizedBox(height: 14),
 
-        // Your rating
-        Row(
-          children: [
-            Text('Your Rating',
-                style: TextStyle(
+      // your rating
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDeco(isDark),
+        child: Row(children: [
+          Text('Your Rating',
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? kText2Dark : kText2Light,
-                )),
-            const SizedBox(width: 12),
-            ...List.generate(5, (i) {
-              final v = i + 1;
-              final filled = v <= myRating;
-              return GestureDetector(
-                onTap: () => onRate(v),
-                child: Padding(
+                  color: isDark ? kText2Dark : kText2Light)),
+          const SizedBox(width: 12),
+          ...List.generate(5, (i) {
+            final v = i + 1;
+            final filled = v <= myRating;
+            return GestureDetector(
+              onTap: () => onRate(v),
+              child: Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: Icon(
-                    filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: filled
-                        ? const Color(0xFFF59E0B)
-                        : (isDark ? kText2Dark : kText3Light),
-                    size: 26,
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Reviews
-        _buildReviews(),
-      ],
-    );
+                      filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: filled
+                          ? const Color(0xFFF59E0B)
+                          : (isDark ? kText2Dark : kText3Light),
+                      size: 28)),
+            );
+          }),
+        ]),
+      ),
+      const SizedBox(height: 14),
+      _buildReviews(),
+    ]);
   }
 
   Widget _buildReviews() {
     return coursesAsync.when(
       loading: () => Column(children: [
-        _shimmerCard(),
+        const ShimmerCard(height: 88),
         const SizedBox(height: 10),
-        _shimmerCard(),
+        const ShimmerCard(height: 88)
       ]),
       error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
       data: (courses) => tsAsync.when(
         loading: () => Column(children: [
-          _shimmerCard(),
+          const ShimmerCard(height: 88),
           const SizedBox(height: 10),
-          _shimmerCard(),
+          const ShimmerCard(height: 88)
         ]),
         error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
         data: (series) {
@@ -1549,17 +1628,14 @@ class _RatingsSection extends StatelessWidget {
             ..._fromSeries(series),
           ]..sort((a, b) => (b.updatedAt ?? DateTime(0))
               .compareTo(a.updatedAt ?? DateTime(0)));
-
-          if (reviews.isEmpty) {
+          if (reviews.isEmpty)
             return _infoCard('No reviews yet',
                 'Reviews appear after students rate courses or tests.');
-          }
           return Column(
-            children: reviews
-                .take(4)
-                .map((r) => _ReviewCard(review: r, isDark: isDark))
-                .toList(),
-          );
+              children: reviews
+                  .take(4)
+                  .map((r) => _ReviewCard(review: r, isDark: isDark))
+                  .toList());
         },
       ),
     );
@@ -1571,13 +1647,12 @@ class _RatingsSection extends StatelessWidget {
       for (final r in c.reviews) {
         if ((r.comment ?? '').trim().isEmpty) continue;
         out.add(_Review(
-          source: c.title,
-          name: r.name ?? 'Student',
-          avatar: r.avatar,
-          rating: r.rating ?? 0,
-          comment: r.comment ?? '',
-          updatedAt: r.updatedAt ?? r.createdAt,
-        ));
+            source: c.title,
+            name: r.name ?? 'Student',
+            avatar: r.avatar,
+            rating: r.rating ?? 0,
+            comment: r.comment ?? '',
+            updatedAt: r.updatedAt ?? r.createdAt));
       }
     }
     return out;
@@ -1589,46 +1664,31 @@ class _RatingsSection extends StatelessWidget {
       for (final r in ts.reviews) {
         if ((r.comment ?? '').trim().isEmpty) continue;
         out.add(_Review(
-          source: ts.title,
-          name: r.name ?? 'Student',
-          avatar: r.avatar,
-          rating: r.rating ?? 0,
-          comment: r.comment ?? '',
-          updatedAt: r.updatedAt ?? r.createdAt,
-        ));
+            source: ts.title,
+            name: r.name ?? 'Student',
+            avatar: r.avatar,
+            rating: r.rating ?? 0,
+            comment: r.comment ?? '',
+            updatedAt: r.updatedAt ?? r.createdAt));
       }
     }
     return out;
   }
 
-  Widget _shimmerCard() => const ShimmerCard(height: 88);
-
   Widget _infoCard(String title, String sub) => Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: TextStyle(
+        decoration: _cardDeco(isDark),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: isDark ? kText1Dark : kText1Light,
-                )),
-            const SizedBox(height: 4),
-            Text(sub,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? kText2Dark : kText2Light,
-                )),
-          ],
-        ),
+                  color: isDark ? kText1Dark : kText1Light)),
+          const SizedBox(height: 4),
+          Text(sub,
+              style: TextStyle(
+                  fontSize: 12, color: isDark ? kText2Dark : kText2Light)),
+        ]),
       );
 }
 
@@ -1637,14 +1697,13 @@ class _Review {
   final String? avatar;
   final double rating;
   final DateTime? updatedAt;
-  const _Review({
-    required this.source,
-    required this.name,
-    required this.avatar,
-    required this.rating,
-    required this.comment,
-    required this.updatedAt,
-  });
+  const _Review(
+      {required this.source,
+      required this.name,
+      required this.avatar,
+      required this.rating,
+      required this.comment,
+      required this.updatedAt});
 }
 
 class _ReviewCard extends StatelessWidget {
@@ -1657,84 +1716,54 @@ class _ReviewCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? kSurfaceDark : kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: kPrimaryBg,
-            backgroundImage: review.avatar != null && review.avatar!.isNotEmpty
-                ? NetworkImage(review.avatar!)
-                : null,
-            child: review.avatar == null || review.avatar!.isEmpty
-                ? Text(
-                    review.name.isNotEmpty ? review.name[0].toUpperCase() : 'S',
-                    style: const TextStyle(
+      decoration: _cardDeco(isDark),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: kPrimaryBg,
+          backgroundImage: review.avatar != null && review.avatar!.isNotEmpty
+              ? NetworkImage(review.avatar!)
+              : null,
+          child: review.avatar == null || review.avatar!.isEmpty
+              ? Text(
+                  review.name.isNotEmpty ? review.name[0].toUpperCase() : 'S',
+                  style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: kPrimary,
-                      fontSize: 14,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(review.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: isDark ? kText1Dark : kText1Light,
-                          )),
-                    ),
-                    const Icon(Icons.star_rounded,
-                        size: 13, color: Color(0xFFF59E0B)),
-                    const SizedBox(width: 3),
-                    Text(review.rating.toStringAsFixed(1),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? kText2Dark : kText2Light,
-                        )),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(review.source,
+                      fontSize: 14))
+              : null,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+                child: Text(review.name,
                     style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? kText2Dark : kText3Light,
-                    )),
-                const SizedBox(height: 6),
-                Text(review.comment,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: isDark ? kText2Dark : kText2Light,
-                    )),
-              ],
-            ),
-          ),
-        ],
-      ),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: isDark ? kText1Dark : kText1Light))),
+            const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
+            const SizedBox(width: 3),
+            Text(review.rating.toStringAsFixed(1),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? kText2Dark : kText2Light)),
+          ]),
+          const SizedBox(height: 3),
+          Text(review.source,
+              style: TextStyle(
+                  fontSize: 11, color: isDark ? kText2Dark : kText3Light)),
+          const SizedBox(height: 6),
+          Text(review.comment,
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: isDark ? kText2Dark : kText2Light)),
+        ])),
+      ]),
     );
   }
 }
@@ -1743,11 +1772,10 @@ class _ReviewCard extends StatelessWidget {
 class _CoursesTab extends ConsumerWidget {
   final String educatorId, educatorName;
   final bool isDark;
-  const _CoursesTab({
-    required this.educatorId,
-    required this.educatorName,
-    required this.isDark,
-  });
+  const _CoursesTab(
+      {required this.educatorId,
+      required this.educatorName,
+      required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1762,45 +1790,41 @@ class _CoursesTab extends ConsumerWidget {
         final ota = courses
             .where((c) => c.courseType == 'one-to-all' || c.courseType == 'OTA')
             .toList();
-
-        if (oto.isEmpty && ota.isEmpty) {
+        if (oto.isEmpty && ota.isEmpty)
           return _emptyState('No courses yet', isDark);
-        }
-
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-          children: [
-            if (oto.isNotEmpty) ...[
-              _tabHeader('One to One', 'Personalized live sessions', isDark),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 232,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: oto.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) =>
-                      _CourseCard(course: oto[i], isDark: isDark),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-            if (ota.isNotEmpty) ...[
-              _tabHeader('One to All', 'Interactive group classes', isDark),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 232,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: ota.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) =>
-                      _CourseCard(course: ota[i], isDark: isDark),
-                ),
-              ),
-            ],
-          ],
-        );
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            children: [
+              if (oto.isNotEmpty) ...[
+                _tabHeader('One to One', 'Personalized live sessions', isDark,
+                    onTap: () => context
+                        .push('/educator/$educatorId/content?tab=courses')),
+                const SizedBox(height: 12),
+                SizedBox(
+                    height: 232,
+                    child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: oto.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (_, i) =>
+                            _CourseCard(course: oto[i], isDark: isDark))),
+                const SizedBox(height: 24),
+              ],
+              if (ota.isNotEmpty) ...[
+                _tabHeader('One to All', 'Interactive group classes', isDark,
+                    onTap: () => context
+                        .push('/educator/$educatorId/content?tab=courses')),
+                const SizedBox(height: 12),
+                SizedBox(
+                    height: 232,
+                    child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: ota.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (_, i) =>
+                            _CourseCard(course: ota[i], isDark: isDark))),
+              ],
+            ]);
       },
     );
   }
@@ -1809,11 +1833,10 @@ class _CoursesTab extends ConsumerWidget {
 class _WebinarsTab extends ConsumerWidget {
   final String educatorId, educatorName;
   final bool isDark;
-  const _WebinarsTab({
-    required this.educatorId,
-    required this.educatorName,
-    required this.isDark,
-  });
+  const _WebinarsTab(
+      {required this.educatorId,
+      required this.educatorName,
+      required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1824,14 +1847,17 @@ class _WebinarsTab extends ConsumerWidget {
       data: (list) {
         if (list.isEmpty) return _emptyState('No webinars yet', isDark);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-          children: [
-            _tabHeader('Webinars by $educatorName', 'Live & upcoming sessions',
-                isDark),
-            const SizedBox(height: 12),
-            ...list.take(6).map((w) => _WebinarRow(webinar: w, isDark: isDark)),
-          ],
-        );
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            children: [
+              _tabHeader('Webinars by $educatorName',
+                  'Live & upcoming sessions', isDark,
+                  onTap: () => context
+                      .push('/educator/$educatorId/content?tab=webinars')),
+              const SizedBox(height: 12),
+              ...list
+                  .take(6)
+                  .map((w) => _WebinarRow(webinar: w, isDark: isDark)),
+            ]);
       },
     );
   }
@@ -1840,11 +1866,10 @@ class _WebinarsTab extends ConsumerWidget {
 class _TestSeriesTab extends ConsumerWidget {
   final String educatorId, educatorName;
   final bool isDark;
-  const _TestSeriesTab({
-    required this.educatorId,
-    required this.educatorName,
-    required this.isDark,
-  });
+  const _TestSeriesTab(
+      {required this.educatorId,
+      required this.educatorName,
+      required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1855,16 +1880,17 @@ class _TestSeriesTab extends ConsumerWidget {
       data: (list) {
         if (list.isEmpty) return _emptyState('No test series yet', isDark);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-          children: [
-            _tabHeader('Test Series by $educatorName',
-                'Practice with curated tests', isDark),
-            const SizedBox(height: 12),
-            ...list
-                .take(6)
-                .map((ts) => _TestSeriesRow(testSeries: ts, isDark: isDark)),
-          ],
-        );
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            children: [
+              _tabHeader('Test Series by $educatorName',
+                  'Practice with curated tests', isDark,
+                  onTap: () => context
+                      .push('/educator/$educatorId/content?tab=test-series')),
+              const SizedBox(height: 12),
+              ...list
+                  .take(6)
+                  .map((ts) => _TestSeriesRow(testSeries: ts, isDark: isDark)),
+            ]);
       },
     );
   }
@@ -1883,146 +1909,111 @@ class _CourseCard extends StatelessWidget {
       child: Container(
         width: 215,
         decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
+            color: isDark ? kSurfaceDark : kSurface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3))
+            ]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Stack(
-                children: [
-                  SizedBox(
+                  const BorderRadius.vertical(top: Radius.circular(18)),
+              child: Stack(children: [
+                SizedBox(
                     height: 110,
                     width: double.infinity,
                     child: course.imageUrl.isNotEmpty
                         ? Image.network(course.imageUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _thumb())
-                        : _thumb(),
-                  ),
-                  Positioned.fill(
+                        : _thumb()),
+                Positioned.fill(
                     child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withOpacity(0.3),
-                            Colors.transparent,
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
+                        decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                  Colors.black.withOpacity(0.35),
+                  Colors.transparent
+                ], begin: Alignment.bottomCenter, end: Alignment.topCenter)))),
+                Positioned(
                     top: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: kPrimary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text('LIVE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                          )),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                            color: kPrimary,
+                            borderRadius: BorderRadius.circular(20)),
+                        child: const Text('LIVE',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5)))),
+              ])),
+          Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(course.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: isDark ? kText1Dark : kText1Light,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 6),
-                  Text(course.subject.take(1).join(', '),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? kText2Dark : kText2Light,
-                      )),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        course.fees == null || course.finalPrice <= 0
-                            ? 'Free'
-                            : '₹${course.finalPrice.toInt()}',
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(course.title,
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: course.fees == null
-                              ? const Color(0xFF16A34A)
-                              : kPrimary,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: kPrimary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text('Enroll',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            )),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark ? kText1Dark : kText1Light),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 5),
+                    Text(course.subject.take(1).join(', '),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? kText2Dark : kText2Light)),
+                    const SizedBox(height: 10),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                              course.fees == null || course.finalPrice <= 0
+                                  ? 'Free'
+                                  : '₹${course.finalPrice.toInt()}',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: course.fees == null
+                                      ? const Color(0xFF16A34A)
+                                      : kPrimary)),
+                          Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                  color: kPrimary,
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: const Text('Enroll',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700))),
+                        ]),
+                  ])),
+        ]),
       ),
     );
   }
 
   Widget _thumb() => Container(
-        height: 110,
-        decoration: const BoxDecoration(
+      height: 110,
+      decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [kPrimary, kPrimaryDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: const Center(
-          child:
-              Icon(Icons.play_circle_rounded, color: Colors.white24, size: 40),
-        ),
-      );
+              colors: [kPrimary, kPrimaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight)),
+      child: const Center(
+          child: Icon(Icons.play_circle_rounded,
+              color: Colors.white24, size: 40)));
 }
 
 class _WebinarRow extends StatelessWidget {
@@ -2042,93 +2033,66 @@ class _WebinarRow extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
+        decoration: _cardDeco(isDark),
+        child: Row(children: [
+          ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
-                width: 76,
-                height: 76,
-                child: img.isNotEmpty
-                    ? Image.network(img,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _imgFallback())
-                    : _imgFallback(),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
+                  width: 72,
+                  height: 72,
+                  child: img.isNotEmpty
+                      ? Image.network(img,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _imgFallback())
+                      : _imgFallback())),
+          const SizedBox(width: 12),
+          Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color:
-                          isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                        color: isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : kPrimaryBg,
+                        borderRadius: BorderRadius.circular(20)),
                     child: const Text('Webinar',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: kPrimary,
-                        )),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(title,
-                      style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: kPrimary))),
+                const SizedBox(height: 6),
+                Text(title,
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: isDark ? kText1Dark : kText1Light,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  if (date.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_month_rounded,
-                            size: 12, color: kPrimary),
-                        const SizedBox(width: 4),
-                        Text(_fmtDate(date),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? kText2Dark : kText2Light,
-                            )),
-                      ],
-                    ),
-                  ],
+                        color: isDark ? kText1Dark : kText1Light),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (date.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Row(children: [
+                    const Icon(Icons.calendar_month_rounded,
+                        size: 12, color: kPrimary),
+                    const SizedBox(width: 4),
+                    Text(_fmtDate(date),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? kText2Dark : kText2Light)),
+                  ]),
                 ],
-              ),
-            ),
-            Container(
+              ])),
+          Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                borderRadius: BorderRadius.circular(9),
-              ),
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(9)),
               child: const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 12, color: kPrimary),
-            ),
-          ],
-        ),
+                  size: 12, color: kPrimary)),
+        ]),
       ),
     );
   }
@@ -2143,17 +2107,14 @@ class _WebinarRow extends StatelessWidget {
   }
 
   Widget _imgFallback() => Container(
-        decoration: const BoxDecoration(
+      decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [kPrimary, kPrimaryDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: const Center(
-          child: Icon(Icons.videocam_rounded, color: Colors.white24, size: 28),
-        ),
-      );
+              colors: [kPrimary, kPrimaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight)),
+      child: const Center(
+          child:
+              Icon(Icons.videocam_rounded, color: Colors.white24, size: 28)));
 }
 
 class _TestSeriesRow extends StatelessWidget {
@@ -2168,236 +2129,130 @@ class _TestSeriesRow extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? kSurfaceDark : kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.06) : kDivLight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
+        decoration: _cardDeco(isDark),
+        child: Row(children: [
+          Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                borderRadius: BorderRadius.circular(13),
-              ),
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: kPrimaryMid)),
               child: const Icon(Icons.assignment_rounded,
-                  color: kPrimary, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
+                  color: kPrimary, size: 24)),
+          const SizedBox(width: 14),
+          Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color:
-                          isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                        color: isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : kPrimaryBg,
+                        borderRadius: BorderRadius.circular(20)),
                     child: const Text('Test Series',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: kPrimary,
-                        )),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(testSeries.title,
-                      style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: kPrimary))),
+                const SizedBox(height: 6),
+                Text(testSeries.title,
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: isDark ? kText1Dark : kText1Light,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.quiz_rounded,
-                          size: 12, color: isDark ? kText2Dark : kText3Light),
-                      const SizedBox(width: 4),
-                      Text('${testSeries.totalTests ?? 0} Tests',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? kText2Dark : kText2Light,
-                          )),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Container(
+                        color: isDark ? kText1Dark : kText1Light),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Icon(Icons.quiz_rounded,
+                      size: 12, color: isDark ? kText2Dark : kText3Light),
+                  const SizedBox(width: 4),
+                  Text('${testSeries.totalTests ?? 0} Tests',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? kText2Dark : kText2Light)),
+                ]),
+              ])),
+          Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
-                borderRadius: BorderRadius.circular(9),
-              ),
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(9)),
               child: const Icon(Icons.arrow_forward_ios_rounded,
-                  size: 12, color: kPrimary),
-            ),
-          ],
-        ),
+                  size: 12, color: kPrimary)),
+        ]),
       ),
     );
   }
 }
-
-// ── Shared helpers ─────────────────────────────────────────────────────────────
-Widget _tabHeader(String title, String sub, bool isDark) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    color: isDark ? kText1Dark : kText1Light,
-                  )),
-              const SizedBox(height: 2),
-              Text(sub,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? kText2Dark : kText2Light,
-                  )),
-            ],
-          ),
-        ),
-        const Text('See All',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: kPrimary,
-            )),
-      ],
-    );
-
-Widget _emptyState(String msg, bool isDark) => Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                  color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
-              child: const Icon(Icons.inbox_rounded, color: kPrimary, size: 32),
-            ),
-            const SizedBox(height: 14),
-            Text(msg,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? kText1Dark : kText1Light,
-                ),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-
-Widget _loadingList() => ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      children: List.generate(
-          3,
-          (_) => const Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: ShimmerCard(height: 100))),
-    );
 
 // ── Error view ─────────────────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
   final bool isDark;
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-    required this.isDark,
-  });
+  const _ErrorView(
+      {required this.message, required this.onRetry, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                  color: kPrimaryBg, borderRadius: BorderRadius.circular(20)),
-              child: const Icon(Icons.error_outline_rounded,
-                  color: kPrimary, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text('Error Loading Profile',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? kText1Dark : kText1Light,
-                )),
-            const SizedBox(height: 8),
-            Text(message,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? kText2Dark : kText2Light,
-                ),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: onRetry,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
-                decoration: BoxDecoration(
-                  color: kPrimary,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kPrimary.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Text('Try Again',
+        child: Padding(
+            padding: const EdgeInsets.all(36),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                        color: kPrimaryBg,
+                        borderRadius: BorderRadius.circular(20)),
+                    child: const Icon(Icons.error_outline_rounded,
+                        color: kPrimary, size: 32)),
+                const SizedBox(height: 16),
+                Text('Error Loading Profile',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    )),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? kText1Dark : kText1Light)),
+                const SizedBox(height: 8),
+                Text(message,
+                    style: TextStyle(
+                        fontSize: 13, color: isDark ? kText2Dark : kText2Light),
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: onRetry,
+                  child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 13),
+                      decoration: BoxDecoration(
+                          color: kPrimary,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                                color: kPrimary.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4))
+                          ]),
+                      child: const Text('Try Again',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14))),
+                ),
+              ],
+            )));
   }
 }
 
-// ── Sticky tab bar delegate ────────────────────────────────────────────────────
+// ── Sticky tab delegate ────────────────────────────────────────────────────────
 class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;
   final bool isDark;
@@ -2419,3 +2274,125 @@ class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_StickyTabDelegate old) => tabBar != old.tabBar;
 }
+
+// ── Shared utilities ───────────────────────────────────────────────────────────
+
+// Section label with optional trailing pill
+Widget _sectionLabel(String title, String? pill, bool isDark) => Row(
+      children: [
+        Text(title,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: isDark ? kText1Dark : kText1Light)),
+        const Spacer(),
+        if (pill != null)
+          Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.06) : kPrimaryBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.08)
+                          : kPrimaryMid)),
+              child: Text(pill,
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: kPrimary))),
+      ],
+    );
+
+BoxDecoration _cardDeco(bool isDark) => BoxDecoration(
+      color: isDark ? kSurfaceDark : kSurface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : kDivLight),
+      boxShadow: [
+        BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.18 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3))
+      ],
+    );
+
+Widget _tabHeader(String title, String sub, bool isDark,
+        {VoidCallback? onTap}) =>
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  color: isDark ? kText1Dark : kText1Light)),
+          const SizedBox(height: 2),
+          Text(sub,
+              style: TextStyle(
+                  fontSize: 12, color: isDark ? kText2Dark : kText2Light)),
+        ])),
+        GestureDetector(
+            onTap: onTap,
+            child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                    color: isDark ? kSurfaceDark : kPrimaryBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.08)
+                            : kPrimaryMid)),
+                child: const Text('See All',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: kPrimary)))),
+      ],
+    );
+
+Widget _emptyState(String msg, bool isDark) => Center(
+      child: Padding(
+          padding: const EdgeInsets.all(48),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                      color: kPrimaryBg,
+                      borderRadius: BorderRadius.circular(20)),
+                  child: const Icon(Icons.inbox_rounded,
+                      color: kPrimary, size: 32)),
+              const SizedBox(height: 14),
+              Text(msg,
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? kText1Dark : kText1Light),
+                  textAlign: TextAlign.center),
+            ],
+          )),
+    );
+
+Widget _loadingList() => ListView(
+    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+    children: List.generate(
+        3,
+        (_) => const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: ShimmerCard(height: 100))));
+
+Widget _emptyCard(String msg, bool isDark) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: _cardDeco(isDark),
+    child: Text(msg,
+        style:
+            TextStyle(fontSize: 13, color: isDark ? kText2Dark : kText2Light)));

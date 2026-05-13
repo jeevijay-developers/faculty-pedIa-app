@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/snackbar_utils.dart';
+import 'verify_email_screen.dart';
 import '../providers/auth_provider.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
@@ -130,18 +131,29 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     final auth = ref.read(authStateProvider);
     if (auth.isLoading) return;
     final email = _emailCtrl.text.trim();
-    final success = await ref.read(authStateProvider.notifier).signupStudent(
-          name: _nameCtrl.text.trim(),
-          username: _usernameCtrl.text.trim(),
-          email: email,
-          password: _passwordCtrl.text,
-          mobileNumber: _mobileCtrl.text.trim(),
-          specialization: _selectedSpec,
-          academicClass: _selectedClass,
-        );
+    final payload = {
+      'name': _nameCtrl.text.trim(),
+      'username': _usernameCtrl.text.trim(),
+      'email': email,
+      'password': _passwordCtrl.text,
+      'mobileNumber': _mobileCtrl.text.trim(),
+      if (_selectedSpec != null) 'specialization': _selectedSpec,
+      if (_selectedClass != null) 'class': _selectedClass,
+    };
+
+    final success = await ref
+        .read(authStateProvider.notifier)
+        .requestPresignupOtp(email: email, userType: 'student');
     if (success && mounted) {
       AppSnackbar.success(context, 'OTP sent to your email.');
-      context.push('/verify-email', extra: email);
+      context.push(
+        '/verify-email',
+        extra: {
+          'email': email,
+          'userType': 'student',
+          'payload': payload,
+        },
+      );
     }
   }
 
@@ -158,6 +170,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : kBgLight,
+      resizeToAvoidBottomInset: false,
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
@@ -194,12 +207,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                       ],
                     ),
                   ),
-                  _buildBottomNav(context, isDark, authState.isLoading),
                 ],
               ),
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: _buildBottomNav(context, isDark, authState.isLoading),
       ),
     );
   }
@@ -374,8 +390,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   // ── Step 1: Personal ──────────────────────────────────────────────────────
   Widget _buildPersonalStep(bool isDark) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + keyboardInset),
       child: Form(
         key: _formKeys[0],
         child: _sectionCard(
@@ -442,8 +459,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   // ── Step 2: Academic ──────────────────────────────────────────────────────
   Widget _buildAcademicStep(bool isDark) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + keyboardInset),
       child: Form(
         key: _formKeys[1],
         child: Column(
@@ -559,8 +577,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   // ── Step 3: Security ──────────────────────────────────────────────────────
   Widget _buildSecurityStep(bool isDark) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + keyboardInset),
       child: Form(
         key: _formKeys[2],
         child: Column(
@@ -661,8 +680,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   Widget _buildBottomNav(BuildContext context, bool isDark, bool isLoading) {
     final isLast = _currentStep == 2;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: BoxDecoration(
         color: isDark ? kSurfaceDark : kSurface,
         border: Border(

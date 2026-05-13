@@ -1,5 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/config/app_config.dart';
@@ -183,12 +184,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (academicClass != null) 'class': academicClass,
       };
 
-      try {
-        await _apiService.post('/api/auth/student/signup', data: payload);
-      } catch (e) {
-        // Fallback to legacy endpoint if the new route is not available.
-        await _apiService.post('/api/auth/signup-student', data: payload);
+      final response = await _apiService.signupStudent(payload);
+
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        if (data['TOKEN'] != null || data['token'] != null) {
+          await _handleLoginResponse(data, 'student');
+          return true;
+        }
       }
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      final errorMessage = _getErrorMessage(e);
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> requestPresignupOtp({
+    required String email,
+    required String userType,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await _apiService.requestPresignupVerification(
+        email: email,
+        userType: userType,
+      );
 
       state = state.copyWith(isLoading: false);
       return true;
@@ -205,18 +233,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> verifyEmailOtp({
     required String email,
     required String otp,
+    required String userType,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      await _apiService.post(
-        '/api/auth/verify-email',
-        data: {
-          'email': email,
-          'otp': otp,
-          'role': 'student',
-        },
+      final response = await _apiService.verifyEmailOtp(
+        email: email,
+        otp: otp,
+        userType: userType,
       );
+
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        if (data['TOKEN'] != null || data['token'] != null) {
+          await _handleLoginResponse(data, 'student');
+          return true;
+        }
+      }
 
       state = state.copyWith(isLoading: false);
       return true;
@@ -232,16 +266,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> resendVerificationOtp({
     required String email,
+    required String userType,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      await _apiService.post(
-        '/api/auth/resend-verification-otp',
-        data: {
-          'email': email,
-          'role': 'student',
-        },
+      await _apiService.resendEmailOtp(
+        email: email,
+        userType: userType,
       );
 
       state = state.copyWith(isLoading: false);
@@ -293,13 +325,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> forgotPassword(String email) async {
+  Future<bool> forgotPassword({
+    required String email,
+    required String userType,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       await _apiService.post(
         '/api/auth/forgot-password',
-        data: {'email': email},
+        data: {
+          'email': email,
+          'userType': userType,
+        },
+      );
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      final errorMessage = _getErrorMessage(e);
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String email,
+    required String userType,
+    required String otp,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await _apiService.post(
+        '/api/auth/reset-password',
+        data: {
+          'email': email,
+          'userType': userType,
+          'otp': otp,
+          'newPassword': newPassword,
+        },
       );
 
       state = state.copyWith(isLoading: false);
@@ -340,24 +409,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   String _getErrorMessage(dynamic error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'] ?? data['error'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return data.trim();
+      }
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 400) {
+        return 'Invalid request. Please check your details.';
+      }
+      if (statusCode == 401) {
+        return 'Invalid credentials. Please try again.';
+      }
+      if (statusCode == 403) {
+        return 'Access denied. Please contact support.';
+      }
+      if (statusCode == 404) {
+        return 'Service not available. Please try again later.';
+      }
+      if (statusCode != null && statusCode >= 500) {
+        return 'Server error. Please try again later.';
+      }
+    }
     if (error.toString().contains('SocketException') ||
         error.toString().contains('Connection refused')) {
       return 'Network error. Please check your internet connection.';
     }
 
-    if (error.toString().contains('400') || error.toString().contains('401')) {
-      return 'Invalid email or password.';
-    }
-
-    if (error.toString().contains('403')) {
-      return 'Account access denied. Please contact support.';
-    }
-
-    if (error.toString().contains('500')) {
-      return 'Server error. Please try again later.';
-    }
-
-    return 'Login failed. Please try again.';
+    return 'Request failed. Please try again.';
   }
 
   void clearError() {

@@ -164,4 +164,52 @@ class ApiService {
       ),
     );
   }
+
+  // Auth endpoints
+  Future<Response<dynamic>> requestPresignupVerification({
+    required String email,
+    required String userType,
+  }) async {
+    return post(
+      '/api/auth/request-presignup-verification',
+      data: {
+        'email': email,
+        'userType': userType,
+      },
+    );
+  }
+
+  Future<Response<dynamic>> signupStudent(
+    Map<String, dynamic> payload,
+  ) async {
+    return post('/api/auth/signup-student', data: payload);
+  }
+
+  Future<Response<dynamic>> verifyEmailOtp({
+    required String email,
+    required String otp,
+    required String userType,
+  }) async {
+    return post(
+      '/api/auth/verify-email',
+      data: {
+        'email': email,
+        'otp': otp,
+        'userType': userType,
+      },
+    );
+  }
+
+  Future<Response<dynamic>> resendEmailOtp({
+    required String email,
+    required String userType,
+  }) async {
+    return post(
+      '/api/auth/request-presignup-verification',
+      data: {
+        'email': email,
+        'userType': userType,
+      },
+    );
+  }
 }

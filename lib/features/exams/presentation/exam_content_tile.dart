@@ -65,7 +65,7 @@ class ExamContentTileScreen extends StatelessWidget {
         _TileData(
           icon: Icons.article_rounded,
           label: 'Posts',
-          subtitle: 'Coming soon',
+          subtitle: 'Community updates',
           gradient: [const Color(0xFF64748B), const Color(0xFF475569)],
           onTap: (ctx) => ctx.go('/posts?exam=$examType'),
         ),

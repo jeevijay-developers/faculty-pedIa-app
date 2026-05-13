@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/snackbar_utils.dart';
@@ -24,7 +25,14 @@ const kDivLight = Color(0xFFF1F5F9);
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
   final String email;
-  const VerifyEmailScreen({super.key, required this.email});
+  final String userType;
+  final Map<String, dynamic>? pendingSignupPayload;
+  const VerifyEmailScreen({
+    super.key,
+    required this.email,
+    required this.userType,
+    this.pendingSignupPayload,
+  });
 
   @override
   ConsumerState<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -68,10 +76,30 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     final success = await ref.read(authStateProvider.notifier).verifyEmailOtp(
           email: widget.email,
           otp: _otpCtrl.text.trim(),
+          userType: widget.userType,
         );
-    if (success && mounted) {
+    if (!success || !mounted) return;
+
+    if (widget.pendingSignupPayload == null) {
       AppSnackbar.success(context, 'Email verified. Please login.');
       context.go('/login');
+      return;
+    }
+
+    final signedUp = await ref.read(authStateProvider.notifier).signupStudent(
+          name: widget.pendingSignupPayload!['name'] as String,
+          username: widget.pendingSignupPayload!['username'] as String,
+          email: widget.pendingSignupPayload!['email'] as String,
+          password: widget.pendingSignupPayload!['password'] as String,
+          mobileNumber: widget.pendingSignupPayload!['mobileNumber'] as String,
+          specialization:
+              widget.pendingSignupPayload!['specialization'] as String?,
+          academicClass: widget.pendingSignupPayload!['class'] as String?,
+        );
+
+    if (signedUp && mounted) {
+      AppSnackbar.success(context, 'Account created. Welcome!');
+      context.go('/home');
     }
   }
 
@@ -79,7 +107,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     if (_secondsLeft > 0) return;
     final ok = await ref
         .read(authStateProvider.notifier)
-        .resendVerificationOtp(email: widget.email);
+        .resendVerificationOtp(email: widget.email, userType: widget.userType);
     if (ok && mounted) {
       AppSnackbar.success(context, 'Verification OTP sent.');
       _startTimer();
@@ -179,6 +207,9 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                       TextFormField(
                         controller: _otpCtrl,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
                         maxLength: 6,
                         decoration: InputDecoration(
                           counterText: '',

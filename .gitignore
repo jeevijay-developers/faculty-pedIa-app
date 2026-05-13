@@ -28,6 +28,9 @@ server/uploads/
 .DS_Store
 *.pem
 
+# Android signing
+android/key.properties
+
 # debug
 npm-debug.log*
 yarn-debug.log*

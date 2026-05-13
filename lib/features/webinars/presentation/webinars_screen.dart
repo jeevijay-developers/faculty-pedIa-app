@@ -494,7 +494,7 @@ class _WebinarCardState extends State<_WebinarCard>
   String get _buttonText {
     if (widget.webinar.isLive) return 'Join Now';
     if (widget.webinar.isUpcoming) return 'Register';
-    return 'View Recording';
+    return 'View';
   }
 
   IconData get _buttonIcon {

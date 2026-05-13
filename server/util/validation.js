@@ -525,6 +525,19 @@ export const passwordResetConfirmValidation = [
     ),
 ];
 
+export const emailVerificationValidation = [
+  validateEmail(),
+  body("otp")
+    .isLength({ min: 6, max: 6 })
+    .withMessage("OTP must be 6 digits")
+    .isNumeric()
+    .withMessage("OTP must be numeric"),
+];
+
+export const emailVerificationResendValidation = [
+  validateEmail(),
+];
+
 // ==================== Webinar Validators ====================
 
 // Validate webinar title

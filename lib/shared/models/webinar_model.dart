@@ -66,6 +66,27 @@ class Webinar {
   }
 
   factory Webinar.fromJson(Map<String, dynamic> json) {
+    final scheduledAtValue = json['scheduledAt'] ??
+        json['timing'] ??
+        json['startTime'] ??
+        json['startAt'] ??
+        json['startsAt'] ??
+        json['startDate'] ??
+        json['scheduledDate'] ??
+        json['date'] ??
+        json['scheduled_on'] ??
+        json['scheduledOn'];
+
+    final registeredCountValue = json['registeredCount'] ??
+        json['attendees'] ??
+        json['enrolledCount'] ??
+        json['registeredStudents'] ??
+        json['enrolledStudents'] ??
+        json['registrations'] ??
+        json['participants'] ??
+        json['students'] ??
+        json['studentEnrolled'];
+
     return Webinar(
       id: json['_id'] ?? json['id'] ?? '',
       title: json['title'] ?? '',
@@ -84,15 +105,14 @@ class Webinar {
       webinarType: json['webinarType'],
       fees: (json['fees'] as num?)?.toDouble(),
       isFree: json['isFree'] ?? (json['fees'] == 0),
-      scheduledAt: json['scheduledAt'] != null
-          ? DateTime.tryParse(json['scheduledAt'])
-          : (json['startTime'] != null
-              ? DateTime.tryParse(json['startTime'])
-              : null),
+      scheduledAt: _parseDateTime(scheduledAtValue),
       duration: _parseInt(json['duration']),
       meetingLink: json['meetingLink'] ?? json['webinarLink'] ?? json['link'],
-      maxAttendees: _parseInt(json['maxAttendees']),
-      registeredCount: _parseInt(json['registeredCount'] ?? json['attendees']),
+      maxAttendees: _parseInt(json['maxAttendees'] ??
+          json['maxSeats'] ??
+          json['capacity'] ??
+          json['seatLimit']),
+      registeredCount: _parseCount(registeredCountValue),
       status: json['status'],
       isActive: json['isActive'],
       isEnrolled: json['isEnrolled'] ??
@@ -119,6 +139,30 @@ class Webinar {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static int? _parseCount(dynamic value) {
+    if (value == null) return null;
+    if (value is List) return value.length;
+    if (value is Map && value['count'] != null) {
+      return _parseInt(value['count']);
+    }
+    return _parseInt(value);
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    if (value is num) {
+      final intVal = value.toInt();
+      if (intVal <= 0) return null;
+      final isMillis = intVal > 1000000000000;
+      return DateTime.fromMillisecondsSinceEpoch(
+        isMillis ? intVal : intVal * 1000,
+      );
+    }
     return null;
   }
 

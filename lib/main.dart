@@ -9,6 +9,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/deep_link_handler.dart';
 import 'core/utils/app_messenger.dart';
 
 void main() async {
@@ -55,14 +56,17 @@ class FacultyPediaApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    return MaterialApp.router(
-      title: AppConfig.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
-      scaffoldMessengerKey: rootScaffoldMessengerKey,
-      routerConfig: router,
+    return DeepLinkHandler(
+      router: router,
+      child: MaterialApp.router(
+        title: AppConfig.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
+        routerConfig: router,
+      ),
     );
   }
 }

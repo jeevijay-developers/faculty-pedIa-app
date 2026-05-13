@@ -7,10 +7,12 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
 import '../../features/educators/presentation/educators_screen.dart';
 import '../../features/educators/presentation/educator_profile_screen.dart';
+import '../../features/educators/presentation/educator_content_screen.dart';
 import '../../features/courses/presentation/courses_screen.dart';
 import '../../features/courses/presentation/course_details_screen.dart';
 import '../../features/exams/presentation/exams_screen.dart';
@@ -45,25 +47,35 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../features/help/help.dart';
 import '../../features/privacy/privacy.dart';
 import '../utils/no_internet_dialog.dart';
+import 'router_refresh_notifier.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refreshNotifier = RouterRefreshNotifier(ref);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     debugLogDiagnostics: true,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||
-          state.matchedLocation == '/forgot-password';
+          state.matchedLocation == '/forgot-password' ||
+          state.matchedLocation == '/reset-password' ||
+          state.matchedLocation == '/verify-email';
       final isSplash = state.matchedLocation == '/splash';
+      final isCourseDeepLink = state.uri.path.startsWith('/course/');
+      final isEducatorDeepLink = state.uri.path.startsWith('/educator/');
       // Don't redirect from splash - let it handle navigation
       if (isSplash) return null;
 
       // If not logged in and not on auth pages, redirect to login
-      if (!isLoggedIn && !isLoggingIn) {
+      if (!isLoggedIn &&
+          !isLoggingIn &&
+          !isCourseDeepLink &&
+          !isEducatorDeepLink) {
         return '/login';
       }
 
@@ -95,12 +107,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final extra = state.extra;
+          String email = '';
+          String userType = 'student';
+
+          if (extra is Map<String, dynamic>) {
+            email = extra['email'] as String? ?? '';
+            userType = extra['userType'] as String? ?? 'student';
+          } else {
+            email = state.uri.queryParameters['email'] ?? '';
+            userType = state.uri.queryParameters['userType'] ?? 'student';
+          }
+
+          return ResetPasswordScreen(
+            email: email,
+            userType: userType,
+          );
+        },
+      ),
+      GoRoute(
         path: '/verify-email',
         builder: (context, state) {
-          final email = state.extra is String
-              ? state.extra as String
-              : state.uri.queryParameters['email'] ?? '';
-          return VerifyEmailScreen(email: email);
+          final extra = state.extra;
+          String email = '';
+          String userType = 'student';
+          Map<String, dynamic>? payload;
+
+          if (extra is Map<String, dynamic>) {
+            email = extra['email'] as String? ?? '';
+            userType = extra['userType'] as String? ?? 'student';
+            payload = extra['payload'] as Map<String, dynamic>?;
+          } else if (extra is String) {
+            email = extra;
+          } else {
+            email = state.uri.queryParameters['email'] ?? '';
+            userType = state.uri.queryParameters['userType'] ?? 'student';
+          }
+
+          return VerifyEmailScreen(
+            email: email,
+            userType: userType,
+            pendingSignupPayload: payload,
+          );
         },
       ),
 
@@ -212,6 +262,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => EducatorProfileScreen(
           educatorId: state.pathParameters['id']!,
         ),
+      ),
+      GoRoute(
+        path: '/educator/:id/content',
+        builder: (context, state) {
+          final tab = state.uri.queryParameters['tab'];
+          final tabIndex = _tabIndexFromParam(tab);
+          return EducatorContentScreen(
+            educatorId: state.pathParameters['id']!,
+            initialTabIndex: tabIndex,
+          );
+        },
       ),
 
       // Courses
@@ -395,3 +456,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+int _tabIndexFromParam(String? tab) {
+  switch (tab) {
+    case 'webinars':
+      return 1;
+    case 'test-series':
+      return 2;
+    case 'courses':
+    default:
+      return 0;
+  }
+}
