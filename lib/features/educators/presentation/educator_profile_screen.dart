@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -110,6 +113,14 @@ class EducatorProfileScreen extends ConsumerWidget {
   final String educatorId;
   const EducatorProfileScreen({super.key, required this.educatorId});
 
+  void _handleBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/home');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(educatorDetailProvider(educatorId));
@@ -140,7 +151,7 @@ class EducatorProfileScreen extends ConsumerWidget {
   Widget _backBtn(BuildContext context) => Padding(
         padding: const EdgeInsets.all(8),
         child: GestureDetector(
-          onTap: () => context.pop(),
+          onTap: () => _handleBack(context),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
@@ -174,6 +185,14 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   VideoPlayerController? _videoCtrl;
   WebViewController? _vimeoCtrl;
   bool _isVideoReady = false;
+
+  void _handleBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/home');
+  }
 
   @override
   void initState() {
@@ -382,7 +401,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       leading: Padding(
         padding: const EdgeInsets.all(8),
         child: GestureDetector(
-          onTap: () => context.pop(),
+          onTap: () => _handleBack(context),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
@@ -917,15 +936,34 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 
   Future<void> _shareEducator(Educator educator) async {
     final imageUrl = _resolveUrl(educator.imageUrl ?? '');
-    final buffer = StringBuffer();
-    if (imageUrl.isNotEmpty) {
-      buffer.writeln(imageUrl);
-      buffer.writeln();
+    final buffer = StringBuffer()
+      ..writeln('Check this educator on FacultyPedia!')
+      ..writeln('\nEducator: ${educator.displayName}')
+      ..writeln('\nhttps://facultypedia.app/educator/${educator.id}');
+
+    final text = buffer.toString();
+    if (imageUrl.isEmpty) {
+      await Share.share(text);
+      return;
     }
-    buffer.writeln('Check this educator on FacultyPedia!');
-    buffer.writeln('\nEducator: ${educator.displayName}');
-    buffer.writeln('\nhttps://facultypedia.app/educator/${educator.id}');
-    await Share.share(buffer.toString());
+
+    try {
+      final resp = await Dio().get<List<int>>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = resp.data ?? <int>[];
+      if (bytes.isEmpty) {
+        await Share.share(text);
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/educator_${educator.id}.jpg');
+      await file.writeAsBytes(bytes, flush: true);
+      await Share.shareXFiles([XFile(file.path)], text: text);
+    } catch (_) {
+      await Share.share(text);
+    }
   }
 
   Future<void> _launchExternal(String url) async {

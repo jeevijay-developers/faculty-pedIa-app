@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -48,6 +51,14 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
 
   final TextEditingController _reviewController = TextEditingController();
   int _selectedRating = 0;
+
+  void _handleBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/home');
+  }
 
   // Tab controller for Features / Reviews
   late TabController _tabController;
@@ -236,7 +247,7 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
       leading: Padding(
         padding: const EdgeInsets.all(8),
         child: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
+          onTap: () => _handleBack(context),
           child: Container(
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : kPrimaryBg,
@@ -1551,19 +1562,37 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
 
   Future<void> _shareCourse(Course course) async {
     final imageUrl = _resolveUrl(course.imageUrl);
-    final buffer = StringBuffer();
-    if (imageUrl.isNotEmpty) {
-      buffer.writeln(imageUrl);
-      buffer.writeln();
-    }
-    buffer.writeln('Check this course on FacultyPedia!');
-    buffer.writeln();
-    buffer.writeln('Course Name: ${course.title}');
-    buffer.writeln();
-    buffer.writeln('Open directly in the app:');
-    buffer.writeln('https://facultypedia.app/course/${course.id}');
+    final buffer = StringBuffer()
+      ..writeln('Check this course on FacultyPedia!')
+      ..writeln()
+      ..writeln('Course Name: ${course.title}')
+      ..writeln()
+      ..writeln('Open directly in the app:')
+      ..writeln('https://facultypedia.app/course/${course.id}');
 
-    await Share.share(buffer.toString());
+    final text = buffer.toString();
+    if (imageUrl.isEmpty) {
+      await Share.share(text);
+      return;
+    }
+
+    try {
+      final resp = await Dio().get<List<int>>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = resp.data ?? <int>[];
+      if (bytes.isEmpty) {
+        await Share.share(text);
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/course_${course.id}.jpg');
+      await file.writeAsBytes(bytes, flush: true);
+      await Share.shareXFiles([XFile(file.path)], text: text);
+    } catch (_) {
+      await Share.share(text);
+    }
   }
 }
 

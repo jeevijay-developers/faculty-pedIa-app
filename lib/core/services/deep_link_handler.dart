@@ -31,7 +31,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     try {
       final uri = await getInitialUri();
       if (uri == null) return;
-      _handleUri(uri);
+      _handleUri(uri, isInitial: true);
     } catch (_) {
       // Ignore malformed or unsupported initial links.
     }
@@ -41,7 +41,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     _sub = uriLinkStream.listen(
       (uri) {
         if (uri == null) return;
-        _handleUri(uri);
+        _handleUri(uri, isInitial: false);
       },
       onError: (_) {
         // Ignore stream errors.
@@ -49,17 +49,39 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     );
   }
 
-  void _handleUri(Uri uri) {
+  void _handleUri(Uri uri, {required bool isInitial}) {
     if (uri.host != 'facultypedia.app') return;
     if (uri.pathSegments.length < 2) return;
     final resource = uri.pathSegments.first;
     final id = uri.pathSegments[1];
     if (id.isEmpty) return;
     if (resource == 'course') {
-      widget.router.go('/course/$id');
+      _openWithBackStack('/course/$id', isInitial: isInitial);
     } else if (resource == 'educator') {
-      widget.router.go('/educator/$id');
+      _openWithBackStack('/educator/$id', isInitial: isInitial);
     }
+  }
+
+  void _openWithBackStack(String location, {required bool isInitial}) {
+    final currentUri = widget.router.routeInformationProvider.value.uri;
+    if (currentUri.path == location) return;
+
+    if (!isInitial) {
+      widget.router.push(location);
+      return;
+    }
+
+    if (currentUri.path == '/splash') {
+      // Ensure we land on a base route first so back navigation works.
+      widget.router.go('/home');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.router.push(location);
+      });
+      return;
+    }
+
+    widget.router.push(location);
   }
 
   @override
