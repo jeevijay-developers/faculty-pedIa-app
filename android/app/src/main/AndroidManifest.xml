@@ -52,6 +52,23 @@
                     android:scheme="https"
                     android:host="facultypedia.app"
                     android:pathPrefix="/educator" />
+                <data
+                    android:scheme="https"
+                    android:host="facultypedia.flku.dev" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="facultypedia"
+                    android:host="course"
+                    android:pathPrefix="/" />
+                <data
+                    android:scheme="facultypedia"
+                    android:host="educator"
+                    android:pathPrefix="/" />
             </intent-filter>
         </activity>
         

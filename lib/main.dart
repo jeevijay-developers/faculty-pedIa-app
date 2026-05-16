@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flinku_sdk/flinku_sdk.dart';
 //import 'package:firebase_core/firebase_core.dart';
 
 import 'core/config/app_config.dart';
@@ -14,6 +15,8 @@ import 'core/utils/app_messenger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  Flinku.configure(baseUrl: 'https://facultypedia.flku.dev');
 
   // Initialize Hive for local storage
   await Hive.initFlutter();

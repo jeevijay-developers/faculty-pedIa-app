@@ -934,12 +934,41 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
     ));
   }
 
+  Future<String?> _fetchShareLink({
+    required String type,
+    required String id,
+    required String title,
+  }) async {
+    try {
+      final resp = await ApiService().post(
+        '/api/share-links',
+        data: {
+          'type': type,
+          'id': id,
+          'title': title,
+        },
+      );
+      final data = resp.data;
+      if (data is Map && data['shortUrl'] != null) {
+        return data['shortUrl'].toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _shareEducator(Educator educator) async {
     final imageUrl = _resolveUrl(educator.imageUrl ?? '');
+    final shortUrl = await _fetchShareLink(
+      type: 'educator',
+      id: educator.id,
+      title: educator.displayName,
+    );
+    final shareUrl = shortUrl ??
+        'https://play.google.com/store/apps/details?id=com.facultypedia.app';
     final buffer = StringBuffer()
       ..writeln('Check this educator on FacultyPedia!')
       ..writeln('\nEducator: ${educator.displayName}')
-      ..writeln('\nhttps://facultypedia.app/educator/${educator.id}');
+      ..writeln('\n$shareUrl');
 
     final text = buffer.toString();
     if (imageUrl.isEmpty) {

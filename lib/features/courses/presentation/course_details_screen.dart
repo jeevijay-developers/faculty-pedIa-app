@@ -1560,15 +1560,44 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
     ));
   }
 
+  Future<String?> _fetchShareLink({
+    required String type,
+    required String id,
+    required String title,
+  }) async {
+    try {
+      final resp = await ApiService().post(
+        '/api/share-links',
+        data: {
+          'type': type,
+          'id': id,
+          'title': title,
+        },
+      );
+      final data = resp.data;
+      if (data is Map && data['shortUrl'] != null) {
+        return data['shortUrl'].toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _shareCourse(Course course) async {
     final imageUrl = _resolveUrl(course.imageUrl);
+    final shortUrl = await _fetchShareLink(
+      type: 'course',
+      id: course.id,
+      title: course.title,
+    );
+    final shareUrl = shortUrl ??
+        'https://play.google.com/store/apps/details?id=com.facultypedia.app';
     final buffer = StringBuffer()
       ..writeln('Check this course on FacultyPedia!')
       ..writeln()
       ..writeln('Course Name: ${course.title}')
       ..writeln()
       ..writeln('Open directly in the app:')
-      ..writeln('https://facultypedia.app/course/${course.id}');
+      ..writeln(shareUrl);
 
     final text = buffer.toString();
     if (imageUrl.isEmpty) {

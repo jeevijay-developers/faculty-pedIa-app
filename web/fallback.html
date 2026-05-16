@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open in FacultyPedia</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --border: rgba(148, 163, 184, 0.2);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: radial-gradient(1200px 600px at 10% -10%, #1e3a8a 0%, transparent 60%),
+                    radial-gradient(1200px 600px at 110% 10%, #0f172a 0%, transparent 60%),
+                    var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+        margin: 0 0 8px;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0 0 20px;
+        line-height: 1.5;
+      }
+      .btn {
+        width: 100%;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        margin-bottom: 10px;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .hint {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.15);
+        color: #93c5fd;
+        font-size: 11px;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="pill">FacultyPedia</div>
+      <h1 class="title">Open this content in FacultyPedia</h1>
+      <p class="subtitle">
+        If the app is installed, it should open automatically. If it does not,
+        you can use the options below.
+      </p>
+      <button id="openBrowser" class="btn btn-ghost">Open in Browser</button>
+      <div style="height: 10px"></div>
+      <button id="openPlayStore" class="btn btn-primary">
+        Download App from Play Store
+      </button>
+      <p class="hint">Redirecting to the Play Store in 2 seconds if the app does not open.</p>
+    </div>
+
+    <script>
+      (function () {
+        var PLAY_STORE = "https://play.google.com/store/apps/details?id=com.facultypedia.app";
+        var currentPath = window.location.pathname || "";
+        var parts = currentPath.split("/").filter(Boolean);
+        var resource = parts.length >= 1 ? parts[0] : "";
+        var id = parts.length >= 2 ? parts[1] : "";
+        var deepLink = "";
+
+        if (resource && id) {
+          deepLink = "facultypedia://" + resource + "/" + id;
+        }
+
+        var openBrowserBtn = document.getElementById("openBrowser");
+        var openPlayStoreBtn = document.getElementById("openPlayStore");
+
+        openBrowserBtn.addEventListener("click", function () {
+          window.open(window.location.href, "_blank");
+        });
+
+        openPlayStoreBtn.addEventListener("click", function () {
+          window.location.href = PLAY_STORE;
+        });
+
+        var didHide = false;
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) didHide = true;
+        });
+        window.addEventListener("pagehide", function () {
+          didHide = true;
+        });
+
+        if (deepLink) {
+          window.location.href = deepLink;
+        }
+
+        setTimeout(function () {
+          if (!didHide) {
+            window.location.href = PLAY_STORE;
+          }
+        }, 2000);
+      })();
+    </script>
+  </body>
+</html>

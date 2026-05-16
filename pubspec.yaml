@@ -1,7 +1,7 @@
 name: faculty_pedia
 description: Faculty Pedia - Educational Platform Mobile App
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -68,6 +68,7 @@ dependencies:
   youtube_player_flutter: ^9.1.1
   share_plus: ^10.1.1
   uni_links: ^0.5.1
+  flinku_sdk: ^0.3.2
 
 dependency_overrides:
   uni_links:

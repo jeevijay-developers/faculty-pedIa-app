@@ -5,13 +5,14 @@
   "packages": [
     {
       "name": "faculty_pedia",
-      "version": "1.0.0+2",
+      "version": "1.0.0+3",
       "dependencies": [
         "cached_network_image",
         "carousel_slider",
         "connectivity_plus",
         "cupertino_icons",
         "dio",
+        "flinku_sdk",
         "flutter",
         "flutter_animate",
         "flutter_form_builder",
@@ -208,6 +209,15 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flinku_sdk",
+      "version": "0.3.2",
+      "dependencies": [
+        "flutter",
+        "http",
+        "shared_preferences"
       ]
     },
     {
@@ -1049,6 +1059,16 @@
       ]
     },
     {
+      "name": "http",
+      "version": "1.6.0",
+      "dependencies": [
+        "async",
+        "http_parser",
+        "meta",
+        "web"
+      ]
+    },
+    {
       "name": "win32",
       "version": "5.15.0",
       "dependencies": [
@@ -1423,16 +1443,6 @@
         "flutter",
         "intl",
         "path"
-      ]
-    },
-    {
-      "name": "http",
-      "version": "1.6.0",
-      "dependencies": [
-        "async",
-        "http_parser",
-        "meta",
-        "web"
       ]
     },
     {

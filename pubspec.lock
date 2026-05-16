@@ -369,6 +369,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  flinku_sdk:
+    dependency: "direct main"
+    description:
+      name: flinku_sdk
+      sha256: "5328c499ff6e831288f6ee387070208c9b051ededc0dd811b5d97b372e4287e9"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.2"
   flutter:
     dependency: "direct main"
     description: flutter

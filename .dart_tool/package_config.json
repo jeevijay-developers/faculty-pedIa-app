@@ -278,6 +278,12 @@
       "languageVersion": "3.1"
     },
     {
+      "name": "flinku_sdk",
+      "rootUri": "file:///C:/Users/Zaid-Pc/AppData/Local/Pub/Cache/hosted/pub.dev/flinku_sdk-0.3.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "flutter",
       "rootUri": "file:///D:/flutter_windows_3.38.5-stable/flutter/packages/flutter",
       "packageUri": "lib/",
