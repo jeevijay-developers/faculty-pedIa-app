@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/config/app_config.dart';
@@ -268,7 +272,10 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
             padding: const EdgeInsets.only(right: 8),
             child: IconButton(
               icon: const Icon(Icons.share_rounded, color: kPrimary, size: 20),
-              onPressed: () {},
+              onPressed: () {
+                final webinar = webinarAsync.asData?.value;
+                if (webinar != null) _shareWebinar(webinar);
+              },
             ),
           ),
         ],
@@ -1373,11 +1380,28 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
           'productId': webinar.id,
         },
       });
+      // Reset loading state after opening Razorpay; callbacks handle the rest.
+      if (mounted) setState(() => _isEnrolling = false);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Enrollment failed: $error');
+      _showSnack(_enrollmentError(error));
       setState(() => _isEnrolling = false);
     }
+  }
+
+  String _enrollmentError(dynamic error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final msg = data['message'] ?? data['error'];
+        if (msg is String && msg.trim().isNotEmpty) return msg.trim();
+      }
+      final status = error.response?.statusCode;
+      if (status == 401) return 'Session expired. Please log in again.';
+      if (status == 400) return 'Invalid request. Please try again.';
+      if (status != null && status >= 500) return 'Server error. Please try again later.';
+    }
+    return 'Enrollment failed. Please try again.';
   }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
@@ -1408,9 +1432,14 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
 
   void _handlePaymentError(PaymentFailureResponse response) {
     if (!mounted) return;
-    _showSnack(response.message?.isNotEmpty == true
-        ? response.message!
-        : 'Payment failed. Please try again.');
+    final msg = response.message ?? '';
+    final isUsable = msg.isNotEmpty && msg.toLowerCase() != 'undefined';
+    final isCancelled = response.code == Razorpay.PAYMENT_CANCELLED;
+    _showSnack(isCancelled
+        ? 'Payment cancelled.'
+        : isUsable
+            ? msg
+            : 'Payment failed. Please try again.');
     setState(() {
       _pendingIntentId = null;
       _isEnrolling = false;
@@ -1452,6 +1481,65 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
       mode: LaunchMode.externalApplication,
     );
     if (!launched) _showSnack('Could not open webinar link.');
+  }
+
+  Future<String?> _fetchShareLink({
+    required String type,
+    required String id,
+    required String title,
+  }) async {
+    try {
+      final resp = await ApiService().post(
+        '/api/share-links',
+        data: {'type': type, 'id': id, 'title': title},
+      );
+      final data = resp.data;
+      if (data is Map && data['shortUrl'] != null) {
+        return data['shortUrl'].toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _shareWebinar(Webinar webinar) async {
+    final imageUrl = _resolveUrl(webinar.imageUrl);
+    final shortUrl = await _fetchShareLink(
+      type: 'webinar',
+      id: webinar.id,
+      title: webinar.title,
+    );
+    final shareUrl = shortUrl ??
+        'https://play.google.com/store/apps/details?id=com.facultypedia.app';
+    final buffer = StringBuffer()
+      ..writeln('Check this webinar on FacultyPedia!')
+      ..writeln()
+      ..writeln('Webinar: ${webinar.title}')
+      ..writeln()
+      ..writeln('Open directly in the app:')
+      ..writeln(shareUrl);
+
+    final text = buffer.toString();
+    if (imageUrl.isEmpty) {
+      await Share.share(text);
+      return;
+    }
+    try {
+      final resp = await Dio().get<List<int>>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = resp.data ?? <int>[];
+      if (bytes.isEmpty) {
+        await Share.share(text);
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/webinar_${webinar.id}.jpg');
+      await file.writeAsBytes(bytes, flush: true);
+      await Share.shareXFiles([XFile(file.path)], text: text);
+    } catch (_) {
+      await Share.share(text);
+    }
   }
 }
 

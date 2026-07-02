@@ -91,7 +91,14 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
     final data = response.data;
 
     Map<String, dynamic> courseData = {};
-    if (data is Map && data['course'] != null) {
+    if (data is Map && data['data'] is Map) {
+      final inner = data['data'] as Map;
+      if (inner['course'] is Map) {
+        courseData = Map<String, dynamic>.from(inner['course']);
+      } else {
+        courseData = Map<String, dynamic>.from(inner);
+      }
+    } else if (data is Map && data['course'] != null) {
       courseData = Map<String, dynamic>.from(data['course']);
     } else if (data is Map) {
       courseData = Map<String, dynamic>.from(data);
@@ -1400,6 +1407,10 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
       _showSnack('Student profile not found.');
       return;
     }
+    if (course.id.isEmpty) {
+      _showSnack('Course data is not ready. Please try again.');
+      return;
+    }
     setState(() => _isEnrolling = true);
     try {
       final isFree = course.fees == null || course.finalPrice <= 0;
@@ -1441,10 +1452,28 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
         },
         'notes': {'productType': 'course', 'productId': course.id},
       });
+      // Reset loading state after opening Razorpay; callbacks handle the rest.
+      if (mounted) setState(() => _isEnrolling = false);
     } catch (error) {
-      _showSnack('Enrollment failed: $error');
+      if (!mounted) return;
+      _showSnack(_enrollmentError(error));
       setState(() => _isEnrolling = false);
     }
+  }
+
+  String _enrollmentError(dynamic error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final msg = data['message'] ?? data['error'];
+        if (msg is String && msg.trim().isNotEmpty) return msg.trim();
+      }
+      final status = error.response?.statusCode;
+      if (status == 401) return 'Session expired. Please log in again.';
+      if (status == 400) return 'Invalid request. Please try again.';
+      if (status != null && status >= 500) return 'Server error. Please try again later.';
+    }
+    return 'Enrollment failed. Please try again.';
   }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
@@ -1474,9 +1503,14 @@ class _CourseDetailsScreenState extends ConsumerState<CourseDetailsScreen>
 
   void _handlePaymentError(PaymentFailureResponse response) {
     if (!mounted) return;
-    _showSnack(response.message?.isNotEmpty == true
-        ? response.message!
-        : 'Payment failed. Please try again.');
+    final msg = response.message ?? '';
+    final isUsable = msg.isNotEmpty && msg.toLowerCase() != 'undefined';
+    final isCancelled = response.code == Razorpay.PAYMENT_CANCELLED;
+    _showSnack(isCancelled
+        ? 'Payment cancelled.'
+        : isUsable
+            ? msg
+            : 'Payment failed. Please try again.');
     setState(() {
       _pendingIntentId = null;
       _isEnrolling = false;

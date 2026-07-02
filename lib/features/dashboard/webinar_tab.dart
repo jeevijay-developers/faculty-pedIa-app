@@ -529,32 +529,12 @@ class _WebinarCardState extends State<_WebinarCard>
                     // CTA row
                     Row(
                       children: [
-                        // view details outline btn
-                        GestureDetector(
-                          onTap: () => context.push('/webinar/${w.id}'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 11),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withOpacity(0.04)
-                                  : kPrimaryBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: kPrimaryMid),
-                            ),
-                            child: const Text('Details',
-                                style: TextStyle(
-                                  color: kPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                )),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
                         // main CTA
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _openMeetingLink(context, w),
+                            onTap: () => w.isLive
+                                ? _openMeetingLink(context, w)
+                                : context.push('/webinar/${w.id}'),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(

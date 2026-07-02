@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <!-- Required by Razorpay payment gateway -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     
     <application
         android:label="Faculty Pedia"
@@ -54,6 +56,10 @@
                     android:pathPrefix="/educator" />
                 <data
                     android:scheme="https"
+                    android:host="facultypedia.app"
+                    android:pathPrefix="/webinar" />
+                <data
+                    android:scheme="https"
                     android:host="facultypedia.flku.dev" />
             </intent-filter>
 
@@ -68,6 +74,10 @@
                 <data
                     android:scheme="facultypedia"
                     android:host="educator"
+                    android:pathPrefix="/" />
+                <data
+                    android:scheme="facultypedia"
+                    android:host="webinar"
                     android:pathPrefix="/" />
             </intent-filter>
         </activity>
@@ -89,5 +99,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Razorpay Checkout Activity -->
+        <activity
+            android:name="com.razorpay.CheckoutActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
+            android:exported="false" />
     </application>
 </manifest>

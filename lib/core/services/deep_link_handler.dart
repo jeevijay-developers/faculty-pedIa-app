@@ -74,6 +74,8 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
       _openWithBackStack('/course/$id', isInitial: isInitial);
     } else if (resource == 'educator') {
       _openWithBackStack('/educator/$id', isInitial: isInitial);
+    } else if (resource == 'webinar') {
+      _openWithBackStack('/webinar/$id', isInitial: isInitial);
     }
   }
 

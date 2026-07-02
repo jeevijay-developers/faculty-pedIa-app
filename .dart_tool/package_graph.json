@@ -33,6 +33,7 @@
         "local_auth",
         "lottie",
         "path_provider",
+        "razorpay_flutter",
         "retrofit",
         "riverpod_annotation",
         "share_plus",
@@ -53,14 +54,6 @@
         "json_serializable",
         "retrofit_generator",
         "riverpod_generator"
-      ]
-    },
-    {
-      "name": "razorpay_flutter",
-      "version": "1.4.3",
-      "dependencies": [
-        "eventify",
-        "flutter"
       ]
     },
     {
@@ -209,6 +202,14 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "razorpay_flutter",
+      "version": "1.4.3",
+      "dependencies": [
+        "eventify",
+        "flutter"
       ]
     },
     {
@@ -562,11 +563,6 @@
         "sky_engine",
         "vector_math"
       ]
-    },
-    {
-      "name": "eventify",
-      "version": "1.0.1",
-      "dependencies": []
     },
     {
       "name": "uni_links_web",
@@ -1057,6 +1053,11 @@
         "string_scanner",
         "term_glyph"
       ]
+    },
+    {
+      "name": "eventify",
+      "version": "1.0.1",
+      "dependencies": []
     },
     {
       "name": "http",

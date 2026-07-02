@@ -44,7 +44,9 @@ final educatorsProvider =
   } else if (data is List) {
     list = data;
   }
-  return list.map((e) => Educator.fromJson(e)).toList();
+  final educators = list.map((e) => Educator.fromJson(e)).toList();
+  educators.sort((a, b) => b.followerCount.compareTo(a.followerCount));
+  return educators;
 });
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -98,6 +100,8 @@ class _EducatorsScreenState extends ConsumerState<EducatorsScreen> {
               e.specialization.any((s) => s.toLowerCase().contains(target)))
           .toList();
     }
+
+    result.sort((a, b) => b.followerCount.compareTo(a.followerCount));
     return result;
   }
 

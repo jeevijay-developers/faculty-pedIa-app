@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -792,9 +793,24 @@ class _TestSeriesDetailsScreenState
       _razorpay.open(options);
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Enrollment failed: $error');
+      _showSnack(_enrollmentError(error));
       setState(() => _isEnrolling = false);
     }
+  }
+
+  String _enrollmentError(dynamic error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final msg = data['message'] ?? data['error'];
+        if (msg is String && msg.trim().isNotEmpty) return msg.trim();
+      }
+      final status = error.response?.statusCode;
+      if (status == 401) return 'Session expired. Please log in again.';
+      if (status == 400) return 'Invalid request. Please try again.';
+      if (status != null && status >= 500) return 'Server error. Please try again later.';
+    }
+    return 'Enrollment failed. Please try again.';
   }
 
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
@@ -828,10 +844,14 @@ class _TestSeriesDetailsScreenState
 
   void _handlePaymentError(PaymentFailureResponse response) {
     if (!mounted) return;
-    final message = response.message?.isNotEmpty == true
-        ? response.message!
-        : 'Payment failed. Please try again.';
-    _showSnack(message);
+    final msg = response.message ?? '';
+    final isUsable = msg.isNotEmpty && msg.toLowerCase() != 'undefined';
+    final isCancelled = response.code == Razorpay.PAYMENT_CANCELLED;
+    _showSnack(isCancelled
+        ? 'Payment cancelled.'
+        : isUsable
+            ? msg
+            : 'Payment failed. Please try again.');
     setState(() {
       _pendingIntentId = null;
       _isEnrolling = false;

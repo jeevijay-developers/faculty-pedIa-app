@@ -2425,28 +2425,30 @@ Widget _tabHeader(String title, String sub, bool isDark,
     );
 
 Widget _emptyState(String msg, bool isDark) => Center(
-      child: Padding(
-          padding: const EdgeInsets.all(48),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                      color: kPrimaryBg,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: const Icon(Icons.inbox_rounded,
-                      color: kPrimary, size: 32)),
-              const SizedBox(height: 14),
-              Text(msg,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? kText1Dark : kText1Light),
-                  textAlign: TextAlign.center),
-            ],
-          )),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                    color: kPrimaryBg,
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Icon(Icons.inbox_rounded,
+                    color: kPrimary, size: 32)),
+            const SizedBox(height: 14),
+            Text(msg,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? kText1Dark : kText1Light),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
     );
 
 Widget _loadingList() => ListView(
