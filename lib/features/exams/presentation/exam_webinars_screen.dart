@@ -9,6 +9,7 @@ import '../../../shared/models/webinar_model.dart';
 import '../../../shared/widgets/shimmer_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/user_widgets.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // ── Design tokens (monochromatic Blue-600) ─────────────────────────────────────
 const kPrimary = Color(0xFF2563EB);
@@ -44,10 +45,14 @@ final examWebinarsProvider = FutureProvider.family
   }
 
   final api = ApiService();
+  final studentId = ref.watch(authStateProvider).student?.id;
   final specialization = specializationForApi(examType);
   final response = await api.get(
     '/api/webinars',
-    queryParameters: {'specialization': specialization},
+    queryParameters: {
+      'specialization': specialization,
+      if (studentId != null && studentId.isNotEmpty) 'studentId': studentId,
+    },
   );
   final data = response.data;
 
@@ -60,8 +65,59 @@ final examWebinarsProvider = FutureProvider.family
     list = data;
   }
 
-  return list.map((e) => Webinar.fromJson(e)).toList();
+  final webinars = list.map((e) => Webinar.fromJson(e)).toList();
+
+  if (studentId != null && studentId.isNotEmpty) {
+    final enrolledIds = await _fetchEnrolledWebinarIds(api, studentId);
+    if (enrolledIds != null) {
+      return webinars.map((w) {
+        if (w.isEnrolled == true) return w;
+        if (!enrolledIds.contains(w.id)) return w;
+        return Webinar.fromJson({...w.toJson(), 'isEnrolled': true});
+      }).toList();
+    }
+  }
+
+  return webinars;
 });
+
+Future<Set<String>?> _fetchEnrolledWebinarIds(
+  ApiService api,
+  String studentId,
+) async {
+  try {
+    final resp = await api.get('/api/students/$studentId');
+    final data = resp.data;
+    Map<String, dynamic> studentData = {};
+    if (data is Map && data['data'] is Map) {
+      studentData = Map<String, dynamic>.from(data['data']);
+    } else if (data is Map) {
+      studentData = Map<String, dynamic>.from(data);
+    }
+    for (final key in [
+      'webinars',
+      'enrolledWebinars',
+      'registeredWebinars',
+      'webinarIds',
+      'webinarRegistrations',
+    ]) {
+      final raw = studentData[key];
+      if (raw is List) {
+        return raw
+            .map((e) {
+              if (e is String) return e;
+              if (e is Map) {
+                return (e['_id'] ?? e['id'] ?? e['webinarId'] ?? '').toString();
+              }
+              return '';
+            })
+            .where((id) => id.isNotEmpty)
+            .toSet();
+      }
+    }
+  } catch (_) {}
+  return null;
+}
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 class ExamWebinarsScreen extends ConsumerStatefulWidget {
@@ -385,6 +441,7 @@ class _WebinarCardState extends State<_WebinarCard>
 
   String get _buttonText {
     if (widget.webinar.isLive) return 'Join Now';
+    if (widget.webinar.isEnrolled == true) return 'Registered';
     if (widget.webinar.isUpcoming) return 'Register';
     return 'View Details';
   }

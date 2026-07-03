@@ -27,6 +27,11 @@ class AppConfig {
   // Razorpay (placeholder - should be fetched from backend)
   static const String razorpayKeyId = '';
 
+  // Flinku deep linking
+  static const String flinkuBaseUrl = 'https://facultypedia.flku.dev';
+  static const String flinkuPublishableKey =
+      'flk_pk_c49ae0bf02c4ab9e63d78308fda9755d52de6c69b3ba42f4';
+
   // Feature Flags
   static const bool enableBiometricAuth = true;
   static const bool enableOfflineMode = true;

@@ -16,7 +16,10 @@ import 'core/utils/app_messenger.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  Flinku.configure(baseUrl: 'https://facultypedia.flku.dev');
+  Flinku.configure(
+    baseUrl: AppConfig.flinkuBaseUrl,
+    apiKey: AppConfig.flinkuPublishableKey,
+  );
 
   // Initialize Hive for local storage
   await Hive.initFlutter();

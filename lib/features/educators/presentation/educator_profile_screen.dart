@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/models/educator_model.dart';
 import '../../../shared/models/course_model.dart';
@@ -106,6 +107,28 @@ final educatorWebinarsProvider =
     list = data['webinars'] as List;
   else if (data is List) list = data;
   return list;
+});
+
+// Locally submitted reviews — shown immediately after submission this session.
+final _localReviewsProvider =
+    StateProvider.family<List<_Review>, String>((ref, educatorId) => []);
+
+// Persisted reviews stored locally (backend has no GET /reviews endpoint).
+// Reviews are saved to SharedPreferences on submit and loaded here on every visit.
+final educatorWebinarReviewsProvider =
+    FutureProvider.family.autoDispose<List<_Review>, String>((ref, educatorId) async {
+  final raw = StorageService.getJsonList('educator_reviews_$educatorId') ?? [];
+  return raw.map((e) {
+    if (e is! Map) return null;
+    return _Review(
+      source: (e['source'] ?? 'Activity').toString(),
+      name: (e['name'] ?? 'Student').toString(),
+      avatar: e['avatar']?.toString(),
+      rating: (e['rating'] as num?)?.toDouble() ?? 0,
+      comment: (e['comment'] ?? '').toString(),
+      updatedAt: e['updatedAt'] != null ? DateTime.tryParse(e['updatedAt']) : null,
+    );
+  }).whereType<_Review>().toList();
 });
 
 // ── Main screen ────────────────────────────────────────────────────────────────
@@ -330,9 +353,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   educator: e,
                   coursesAsync: coursesAsync,
                   tsAsync: tsAsync,
+                  webinarsAsync: ref.watch(educatorWebinarsProvider(widget.educatorId)),
+                  localReviews: ref.watch(_localReviewsProvider(widget.educatorId)),
+                  webinarReviewsAsync: ref.watch(educatorWebinarReviewsProvider(widget.educatorId)),
                   myRating: _myRating,
                   isDark: isDark,
                   onRate: _submitRating,
+                  onShareReview: () => _showReviewModal(coursesAsync, tsAsync),
                 ),
               ),
             ),
@@ -922,6 +949,203 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
       }
       _snack('Failed to submit rating.');
     }
+  }
+
+  // ── Review modal ──────────────────────────────────────────────────────────
+  Future<void> _showReviewModal(
+    AsyncValue<List<Course>> coursesAsync,
+    AsyncValue<List<TestSeries>> tsAsync,
+  ) async {
+    final auth = ref.read(authStateProvider);
+    final student = auth.student;
+    if (student == null) {
+      _snack('Please log in as a student to leave a review.');
+      return;
+    }
+
+    final courses = coursesAsync.valueOrNull ?? [];
+    final series = tsAsync.valueOrNull ?? [];
+
+    // Fetch the student's full fresh profile from API — the auth state model
+    // may be stale or have incomplete nested IDs.
+    final api = ApiService();
+    Set<String> enrolledCourseIds = {};
+    Set<String> enrolledTestIds = {};
+    Set<String> enrolledWebinarIds = {};
+
+    try {
+      final resp = await api.get('/api/students/${student.id}');
+      final data = resp.data;
+      Map<String, dynamic> sd = {};
+      if (data is Map && data['data'] is Map) {
+        sd = Map<String, dynamic>.from(data['data']);
+      } else if (data is Map && data['student'] is Map) {
+        sd = Map<String, dynamic>.from(data['student']);
+      } else if (data is Map) {
+        sd = Map<String, dynamic>.from(data);
+      }
+
+      // Courses — try multiple key names
+      for (final key in ['courses', 'enrolledCourses', 'courseIds']) {
+        final raw = sd[key];
+        if (raw is List && raw.isNotEmpty) {
+          enrolledCourseIds = raw.map((e) {
+            if (e is String) return e;
+            if (e is Map) {
+              // courseId may be a string or a nested {_id:...} object
+              final cid = e['courseId'];
+              if (cid is String) return cid;
+              if (cid is Map) return (cid['_id'] ?? cid['id'] ?? '').toString();
+              return (e['_id'] ?? e['id'] ?? '').toString();
+            }
+            return '';
+          }).where((id) => id.isNotEmpty).toSet();
+          break;
+        }
+      }
+
+      // Tests — try multiple key names
+      for (final key in ['tests', 'enrolledTests', 'testSeries', 'testSeriesIds']) {
+        final raw = sd[key];
+        if (raw is List && raw.isNotEmpty) {
+          enrolledTestIds = raw.map((e) {
+            if (e is String) return e;
+            if (e is Map) {
+              final tid = e['testSeriesId'];
+              if (tid is String) return tid;
+              if (tid is Map) return (tid['_id'] ?? tid['id'] ?? '').toString();
+              return (e['_id'] ?? e['id'] ?? '').toString();
+            }
+            return '';
+          }).where((id) => id.isNotEmpty).toSet();
+          break;
+        }
+      }
+
+      // Webinars — try multiple key names
+      for (final key in [
+        'webinars', 'enrolledWebinars', 'registeredWebinars',
+        'webinarIds', 'webinarRegistrations',
+      ]) {
+        final raw = sd[key];
+        if (raw is List && raw.isNotEmpty) {
+          enrolledWebinarIds = raw.map((e) {
+            if (e is String) return e;
+            if (e is Map) {
+              final wid = e['webinarId'];
+              if (wid is String) return wid;
+              if (wid is Map) return (wid['_id'] ?? wid['id'] ?? '').toString();
+              return (e['_id'] ?? e['id'] ?? '').toString();
+            }
+            return '';
+          }).where((id) => id.isNotEmpty).toSet();
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('Student profile fetch error: $e');
+    }
+
+    // Also include IDs already in auth state (belt-and-suspenders)
+    enrolledCourseIds.addAll(student.courses.map((c) => c.courseId));
+    enrolledTestIds.addAll(student.tests.map((t) => t.testSeriesId));
+
+    debugPrint('enrolledCourseIds: $enrolledCourseIds');
+    debugPrint('enrolledTestIds: $enrolledTestIds');
+    debugPrint('enrolledWebinarIds: $enrolledWebinarIds');
+    debugPrint('educator courses: ${courses.map((c) => c.id).toList()}');
+    debugPrint('educator series: ${series.map((ts) => ts.id).toList()}');
+
+    // Build dropdown items from educator's activities that this student enrolled in
+    final items = <Map<String, String>>[];
+    for (final c in courses) {
+      if (enrolledCourseIds.contains(c.id)) {
+        items.add({'id': c.id, 'title': c.title, 'type': 'course'});
+      }
+    }
+    for (final ts in series) {
+      if (enrolledTestIds.contains(ts.id)) {
+        items.add({'id': ts.id, 'title': ts.title, 'type': 'test-series'});
+      }
+    }
+
+    // Fetch educator's webinars fresh and match against enrolled webinar IDs
+    if (enrolledWebinarIds.isNotEmpty) {
+      try {
+        final wResp = await api.get('/api/webinars/educator/${widget.educatorId}');
+        final wData = wResp.data;
+        List<dynamic> wList = [];
+        if (wData is Map && wData['data']?['webinars'] != null) {
+          wList = wData['data']['webinars'] as List;
+        } else if (wData is Map && wData['webinars'] != null) {
+          wList = wData['webinars'] as List;
+        } else if (wData is List) {
+          wList = wData;
+        }
+        debugPrint('educator webinars: ${wList.map((w) => w is Map ? w['_id'] ?? w['id'] : w).toList()}');
+        for (final w in wList) {
+          if (w is Map) {
+            final wid = (w['_id'] ?? w['id'])?.toString() ?? '';
+            if (wid.isNotEmpty && enrolledWebinarIds.contains(wid)) {
+              items.add({
+                'id': wid,
+                'title': w['title']?.toString() ?? 'Webinar',
+                'type': 'webinar',
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Educator webinars fetch error: $e');
+      }
+    }
+
+    debugPrint('review modal items: $items');
+
+    if (items.isEmpty) {
+      _snack('You are not enrolled in any activity by this educator.');
+      return;
+    }
+
+    if (!mounted) return;
+    final isDark = _isDark();
+    final educatorId = widget.educatorId;
+    final sid = student.id;
+    final sName = student.name ??
+        '${student.firstName ?? ''} ${student.lastName ?? ''}'.trim();
+    final sAvatar = student.image?.url;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReviewModal(
+        items: items,
+        studentId: sid,
+        studentName: sName.isEmpty ? 'Student' : sName,
+        studentAvatar: sAvatar,
+        isDark: isDark,
+        onSubmitted: (review) {
+          // Show immediately this session
+          ref.read(_localReviewsProvider(educatorId).notifier)
+              .update((list) => [review, ...list]);
+          // Persist to SharedPreferences so it survives app restarts
+          final key = 'educator_reviews_$educatorId';
+          final existing = StorageService.getJsonList(key) ?? [];
+          existing.insert(0, {
+            'source': review.source,
+            'name': review.name,
+            'avatar': review.avatar,
+            'rating': review.rating,
+            'comment': review.comment,
+            'updatedAt': review.updatedAt?.toIso8601String(),
+          });
+          StorageService.setJsonList(key, existing);
+          ref.invalidate(educatorWebinarReviewsProvider(educatorId));
+          ref.invalidate(educatorCoursesProvider(educatorId));
+          ref.invalidate(educatorTestSeriesProvider(educatorId));
+        },
+      ),
+    );
   }
 
   void _snack(String msg) {
@@ -1600,17 +1824,25 @@ class _RatingsSection extends StatelessWidget {
   final Educator educator;
   final AsyncValue<List<Course>> coursesAsync;
   final AsyncValue<List<TestSeries>> tsAsync;
+  final AsyncValue<List<dynamic>> webinarsAsync;
+  final AsyncValue<List<_Review>> webinarReviewsAsync;
+  final List<_Review> localReviews;
   final int myRating;
   final bool isDark;
   final ValueChanged<int> onRate;
+  final VoidCallback? onShareReview;
 
   const _RatingsSection({
     required this.educator,
     required this.coursesAsync,
     required this.tsAsync,
+    required this.webinarsAsync,
+    required this.webinarReviewsAsync,
+    required this.localReviews,
     required this.myRating,
     required this.isDark,
     required this.onRate,
+    this.onShareReview,
   });
 
   @override
@@ -1670,42 +1902,66 @@ class _RatingsSection extends StatelessWidget {
         ]),
       ),
       const SizedBox(height: 14),
+      if (onShareReview != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onShareReview,
+              icon: const Icon(Icons.rate_review_outlined, size: 18),
+              label: const Text('Share Your Review'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kPrimary,
+                side: const BorderSide(color: kPrimary),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ),
       _buildReviews(),
     ]);
   }
 
   Widget _buildReviews() {
-    return coursesAsync.when(
-      loading: () => Column(children: [
-        const ShimmerCard(height: 88),
+    final courseReviews = _fromCourses(coursesAsync.valueOrNull ?? []);
+    final tsReviews = _fromSeries(tsAsync.valueOrNull ?? []);
+    final webinarReviews = webinarReviewsAsync.valueOrNull ?? <_Review>[];
+
+    final isLoading = coursesAsync.isLoading ||
+        tsAsync.isLoading ||
+        webinarReviewsAsync.isLoading;
+
+    if (isLoading && courseReviews.isEmpty && tsReviews.isEmpty &&
+        webinarReviews.isEmpty && localReviews.isEmpty) {
+      return Column(children: [
+        _shimmerReviewPlaceholder(),
         const SizedBox(height: 10),
-        const ShimmerCard(height: 88)
-      ]),
-      error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
-      data: (courses) => tsAsync.when(
-        loading: () => Column(children: [
-          const ShimmerCard(height: 88),
-          const SizedBox(height: 10),
-          const ShimmerCard(height: 88)
-        ]),
-        error: (e, _) => _infoCard('Failed to load reviews', e.toString()),
-        data: (series) {
-          final reviews = [
-            ..._fromCourses(courses),
-            ..._fromSeries(series),
-          ]..sort((a, b) => (b.updatedAt ?? DateTime(0))
-              .compareTo(a.updatedAt ?? DateTime(0)));
-          if (reviews.isEmpty)
-            return _infoCard('No reviews yet',
-                'Reviews appear after students rate courses or tests.');
-          return Column(
-              children: reviews
-                  .take(4)
-                  .map((r) => _ReviewCard(review: r, isDark: isDark))
-                  .toList());
-        },
-      ),
-    );
+        _shimmerReviewPlaceholder(),
+      ]);
+    }
+
+    // local first (just submitted this session), then fetched, then course/ts
+    final seen = <String>{};
+    final all = <_Review>[];
+    for (final r in [...localReviews, ...webinarReviews, ...courseReviews, ...tsReviews]) {
+      final key = '${r.name}|${r.comment}';
+      if (seen.add(key)) all.add(r);
+    }
+    all.sort((a, b) =>
+        (b.updatedAt ?? DateTime(0)).compareTo(a.updatedAt ?? DateTime(0)));
+
+    if (all.isEmpty) {
+      return _infoCard(
+          'No reviews yet', 'Reviews appear after students submit a review.');
+    }
+    final items = all.take(6).toList();
+    if (items.length == 1) {
+      return _ReviewCard(review: items.first, isDark: isDark);
+    }
+    return _ReviewCarousel(reviews: items, isDark: isDark);
   }
 
   List<_Review> _fromCourses(List<Course> courses) {
@@ -1742,6 +1998,24 @@ class _RatingsSection extends StatelessWidget {
     return out;
   }
 
+  Widget _shimmerReviewPlaceholder() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDeco(isDark),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          AppShimmer(height: 12, width: double.infinity,
+              borderRadius: BorderRadius.circular(6)),
+          const SizedBox(height: 8),
+          AppShimmer(height: 12, width: 180,
+              borderRadius: BorderRadius.circular(6)),
+          const SizedBox(height: 10),
+          AppShimmer(height: 10, width: 100,
+              borderRadius: BorderRadius.circular(6)),
+          const SizedBox(height: 8),
+          AppShimmer(height: 10, width: double.infinity,
+              borderRadius: BorderRadius.circular(6)),
+        ]),
+      );
+
   Widget _infoCard(String title, String sub) => Container(
         padding: const EdgeInsets.all(14),
         decoration: _cardDeco(isDark),
@@ -1773,15 +2047,73 @@ class _Review {
       required this.updatedAt});
 }
 
+class _ReviewCarousel extends StatefulWidget {
+  final List<_Review> reviews;
+  final bool isDark;
+  const _ReviewCarousel({required this.reviews, required this.isDark});
+
+  @override
+  State<_ReviewCarousel> createState() => _ReviewCarouselState();
+}
+
+class _ReviewCarouselState extends State<_ReviewCarousel> {
+  final _ctrl = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reviews = widget.reviews;
+    final isDark = widget.isDark;
+    return Column(children: [
+      SizedBox(
+        height: 130,
+        child: PageView.builder(
+          controller: _ctrl,
+          itemCount: reviews.length,
+          onPageChanged: (i) => setState(() => _page = i),
+          itemBuilder: (_, i) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: _ReviewCard(review: reviews[i], isDark: isDark, margin: EdgeInsets.zero),
+          ),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(reviews.length, (i) {
+          final active = i == _page;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: active ? 20 : 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: active ? kPrimary : (isDark ? kText2Dark : kText3Light),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          );
+        }),
+      ),
+    ]);
+  }
+}
+
 class _ReviewCard extends StatelessWidget {
   final _Review review;
   final bool isDark;
-  const _ReviewCard({required this.review, required this.isDark});
+  final EdgeInsets? margin;
+  const _ReviewCard({required this.review, required this.isDark, this.margin});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: margin ?? const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: _cardDeco(isDark),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2451,13 +2783,317 @@ Widget _emptyState(String msg, bool isDark) => Center(
       ),
     );
 
+// ── Review submission modal ────────────────────────────────────────────────────
+class _ReviewModal extends StatefulWidget {
+  final List<Map<String, String>> items;
+  final String studentId;
+  final String studentName;
+  final String? studentAvatar;
+  final bool isDark;
+  final void Function(_Review review) onSubmitted;
+
+  const _ReviewModal({
+    required this.items,
+    required this.studentId,
+    required this.studentName,
+    this.studentAvatar,
+    required this.isDark,
+    required this.onSubmitted,
+  });
+
+  @override
+  State<_ReviewModal> createState() => _ReviewModalState();
+}
+
+class _ReviewModalState extends State<_ReviewModal> {
+  Map<String, String>? _selected;
+  int _rating = 0;
+  final _commentCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.items.first;
+  }
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
+
+  String _typeLabel(String type) {
+    if (type == 'course') return 'Course';
+    if (type == 'test-series') return 'Test Series';
+    return 'Webinar';
+  }
+
+  Future<void> _submit() async {
+    if (_rating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a star rating.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    final item = _selected!;
+    setState(() => _submitting = true);
+    try {
+      final type = item['type']!;
+      final id = item['id']!;
+      final comment = _commentCtrl.text.trim();
+      final api = ApiService();
+
+      if (type == 'course') {
+        // Try course-specific endpoint first, fall back to generic
+        try {
+          await api.post('/api/courses/$id/reviews', data: {
+            'studentId': widget.studentId,
+            'rating': _rating,
+            'comment': comment,
+          });
+        } on DioException catch (err) {
+          if (err.response?.statusCode == 404) {
+            await api.post('/api/reviews', data: {
+              'studentId': widget.studentId,
+              'itemId': id,
+              'itemType': 'course',
+              'rating': _rating,
+              'reviewText': comment,
+            });
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        // Webinar and test-series use the generic /api/reviews endpoint
+        final itemType = type == 'test-series' ? 'testSeries' : 'webinar';
+        try {
+          await api.post('/api/reviews', data: {
+            'studentId': widget.studentId,
+            'itemId': id,
+            'itemType': itemType,
+            'rating': _rating,
+            'reviewText': comment,
+          });
+        } on DioException catch (err) {
+          // Some backends use 'comment' instead of 'reviewText'
+          if (err.response?.statusCode == 400 || err.response?.statusCode == 422) {
+            await api.post('/api/reviews', data: {
+              'studentId': widget.studentId,
+              'itemId': id,
+              'itemType': itemType,
+              'rating': _rating,
+              'comment': comment,
+            });
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onSubmitted(_Review(
+        source: _selected!['title'] ?? 'Activity',
+        name: widget.studentName,
+        avatar: widget.studentAvatar,
+        rating: _rating.toDouble(),
+        comment: _commentCtrl.text.trim(),
+        updatedAt: DateTime.now(),
+      ));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Review submitted! Thank you.'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF16A34A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      String msg = 'Failed to submit review.';
+      if (e is DioException) {
+        final d = e.response?.data;
+        if (d is Map && d['message'] is String && d['message'].isNotEmpty) {
+          msg = d['message'];
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFFDC2626),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final bg = isDark ? kSurfaceDark : Colors.white;
+    final t1 = isDark ? kText1Dark : kText1Light;
+    final t2 = isDark ? kText2Dark : kText2Light;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // drag handle
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? kText2Dark : kText3Light,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Share Your Review',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: t1)),
+          const SizedBox(height: 18),
+
+          // Activity dropdown
+          Text('Select Activity', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t2)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: isDark ? kBgDark : kBgLight,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? kText2Dark.withValues(alpha: 0.3) : kDivLight),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<Map<String, String>>(
+                value: _selected,
+                isExpanded: true,
+                dropdownColor: bg,
+                style: TextStyle(fontSize: 14, color: t1),
+                items: widget.items.map((item) {
+                  return DropdownMenuItem(
+                    value: item,
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: kPrimaryBg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(_typeLabel(item['type']!),
+                            style: const TextStyle(fontSize: 10, color: kPrimary, fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(item['title']!, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, color: t1))),
+                    ]),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _selected = v),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Star rating
+          Text('Your Rating', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t2)),
+          const SizedBox(height: 8),
+          Row(children: List.generate(5, (i) {
+            final v = i + 1;
+            return GestureDetector(
+              onTap: () => setState(() => _rating = v),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  v <= _rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: v <= _rating ? const Color(0xFFF59E0B) : (isDark ? kText2Dark : kText3Light),
+                  size: 36,
+                ),
+              ),
+            );
+          })),
+          const SizedBox(height: 18),
+
+          // Comment field
+          Text('Review (optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: t2)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _commentCtrl,
+            maxLines: 3,
+            maxLength: 500,
+            style: TextStyle(fontSize: 14, color: t1),
+            decoration: InputDecoration(
+              hintText: 'Share your experience...',
+              hintStyle: TextStyle(color: t2),
+              filled: true,
+              fillColor: isDark ? kBgDark : kBgLight,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: isDark ? kText2Dark.withValues(alpha: 0.3) : kDivLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: isDark ? kText2Dark.withValues(alpha: 0.3) : kDivLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: kPrimary),
+              ),
+              contentPadding: const EdgeInsets.all(14),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Buttons
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: t2,
+                  side: BorderSide(color: isDark ? kText2Dark.withValues(alpha: 0.4) : kDivLight),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: _submitting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Submit Review', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
 Widget _loadingList() => ListView(
     padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
     children: List.generate(
         3,
         (_) => const Padding(
             padding: EdgeInsets.only(bottom: 10),
-            child: ShimmerCard(height: 100))));
+            child: ShimmerCard(height: 200))));
 
 Widget _emptyCard(String msg, bool isDark) => Container(
     padding: const EdgeInsets.all(16),

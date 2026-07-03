@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flinku_sdk/flinku_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1483,31 +1484,27 @@ class _WebinarDetailsScreenState extends ConsumerState<WebinarDetailsScreen> {
     if (!launched) _showSnack('Could not open webinar link.');
   }
 
-  Future<String?> _fetchShareLink({
-    required String type,
-    required String id,
-    required String title,
-  }) async {
+  Future<String?> _createFlinkuLink(Webinar webinar) async {
     try {
-      final resp = await ApiService().post(
-        '/api/share-links',
-        data: {'type': type, 'id': id, 'title': title},
-      );
-      final data = resp.data;
-      if (data is Map && data['shortUrl'] != null) {
-        return data['shortUrl'].toString();
-      }
+      final created = await Flinku.createLink(FlinkuLinkOptions(
+        title: webinar.title,
+        deepLink: 'facultypedia://webinar/${webinar.id}',
+        desktopUrl:
+            'https://play.google.com/store/apps/details?id=com.facultypedia.app',
+        ogTitle: webinar.title,
+        ogDescription: webinar.description,
+        ogImageUrl: _resolveUrl(webinar.imageUrl).isNotEmpty
+            ? _resolveUrl(webinar.imageUrl)
+            : null,
+      ));
+      return created.shortUrl;
     } catch (_) {}
     return null;
   }
 
   Future<void> _shareWebinar(Webinar webinar) async {
     final imageUrl = _resolveUrl(webinar.imageUrl);
-    final shortUrl = await _fetchShareLink(
-      type: 'webinar',
-      id: webinar.id,
-      title: webinar.title,
-    );
+    final shortUrl = await _createFlinkuLink(webinar);
     final shareUrl = shortUrl ??
         'https://play.google.com/store/apps/details?id=com.facultypedia.app';
     final buffer = StringBuffer()
